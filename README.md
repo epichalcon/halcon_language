@@ -51,19 +51,22 @@ Variable and function identifiers must start with a letter (lower or uppercase) 
 ### Variable
 
 Variables must be initialized berfore being used with the following format:
-let variable_name: type;
+
+`let variable_name: type;`
 
 If the variable is an array, the initialization will be:
-let variable_name: arr[num_elem]: type;
+`let variable_name: arr[num_elem]: type;`
 
 
 ### Functions
 The functions will be declared with the format:
 
+```
 fun function_name (arg: type, arg: type ...) -> type {
     ...
     return ...;
 }
+```
 
 If the function has got no return type, [-> type] must not be specified
 
@@ -76,10 +79,11 @@ The program entry point will be the first line
 
 Raw c code will be able to be used (to facilitate the use of stdio library) if it is written inside:
 
+```
 raw {
     // c code
 }
-
+```
 
 ### Comments
 The language will have simple comments starting with ´//´ that continue untill a linebreak
