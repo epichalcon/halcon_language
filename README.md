@@ -72,7 +72,13 @@ If the function has got no return type, [-> type] must not be specified
 
 ### Entry point
 
-The program entry point will be the first line
+The program entry point will be defined by the following block:
+
+```
+beguin{
+
+    }
+```
 
 
 ### Raw c
@@ -84,6 +90,51 @@ raw {
     // c code
 }
 ```
+
+### If/else
+
+The if else block will be defined as:
+
+```
+if(condition){
+
+    }
+elif(condition){
+
+    }
+else{
+
+    }
+```
+
+### For
+The for block will be defined as:
+
+```
+for (declaration; initialization; condition; Increment/Decrement){
+
+    }
+
+```
+
+### While
+The while block will be defined as:
+
+```
+while(condition){
+
+    }
+```
+
+If it is an infinite loop it can be declared as:
+
+```
+loop{
+
+    }
+```
+
+where all of the fields are optional
 
 ### Comments
 The language will have simple comments starting with ´//´ that continue untill a linebreak
