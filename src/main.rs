@@ -1,4 +1,8 @@
-use std::fs::File;
+mod lex;
+
+use std::fs::{File, self};
+use std::io::Read;
+use std::os::fd::AsFd;
 use std::str::FromStr;
 
 use strum_macros::EnumString;
@@ -7,7 +11,7 @@ use std::env;
 
 #[derive(EnumString)]
 enum Flags {
-    o, c, b
+    O, C, B
 }
 
 
@@ -75,7 +79,7 @@ fn main() -> Result<(), i8> {
 
     // se comprueba la validez de los flags
     for flag in input_flags{
-        let enum_flag: Flags = Flags::from_str(flag.replace("-", "").as_str())
+        let enum_flag: Flags = Flags::from_str(flag.replace("-", "").to_uppercase().as_str())
             .expect("       
             invalid flag {flag}
             valid flags are:
@@ -84,13 +88,13 @@ fn main() -> Result<(), i8> {
                 -b              : output binary file
             ");
         match enum_flag{
-            Flags::o => { output_file_types.push(enum_flag); continue; }
-            Flags::b => { output_file_types.push(enum_flag); continue; }
-            Flags::c => { output_file_types.push(enum_flag); continue; }
+            Flags::O => { output_file_types.push(enum_flag); continue; }
+            Flags::B => { output_file_types.push(enum_flag); continue; }
+            Flags::C => { output_file_types.push(enum_flag); continue; }
         }
     }
 
-    let mut file_result = File::open(input_file_name);
+    let mut file_result = fs::read_to_string(input_file_name);
     let input_file = match file_result {
         Ok(file) => file ,
         Err(_) => {
@@ -100,8 +104,8 @@ fn main() -> Result<(), i8> {
         }
     };
 
-    file_result = File::create(output_file_name);
-    let output_file = match file_result {
+    let file_result = File::create(output_file_name);
+    let _output_file = match file_result {
         Ok(file) => file ,
         Err(_) => {
             println!("
@@ -109,6 +113,23 @@ fn main() -> Result<(), i8> {
             return Err(3)
         }
     };
+
+    
+    let mut lexer = lex::Status::new(input_file);
+
+    let mut cont_read = true;
+
+    let mut token_list: Vec<lex::Token> = Vec::new();
+
+    while cont_read {
+        let token: lex::Token = lexer.get_token().unwrap();
+
+        if token.token_type == lex::TokenTypes::Eof{
+            cont_read = false;
+        }
+
+        token_list.push(token);
+    }
 
     
 
