@@ -36,10 +36,8 @@ In the language, there will be the following tokens:
 
 ### Increment/Decremetn
 
-<Psint,->
-<Princ,->
-<Psdec,->
-<Prdec,->
+<Dec,->
+<Inc,->
 
 ### Asignation
 

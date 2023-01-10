@@ -1,8 +1,7 @@
 mod lex;
+mod TS;
 
 use std::fs::{File, self};
-use std::io::Read;
-use std::os::fd::AsFd;
 use std::str::FromStr;
 
 use strum_macros::EnumString;
@@ -13,7 +12,6 @@ use std::env;
 enum Flags {
     O, C, B
 }
-
 
 fn main() -> Result<(), i8> {
     let args: Vec<String> = env::args().collect();
@@ -94,7 +92,7 @@ fn main() -> Result<(), i8> {
         }
     }
 
-    let mut file_result = fs::read_to_string(input_file_name);
+    let file_result = fs::read_to_string(input_file_name);
     let input_file = match file_result {
         Ok(file) => file ,
         Err(_) => {
@@ -105,7 +103,7 @@ fn main() -> Result<(), i8> {
     };
 
     let file_result = File::create(output_file_name);
-    let _output_file = match file_result {
+    let output_file = match file_result {
         Ok(file) => file ,
         Err(_) => {
             println!("
@@ -113,7 +111,6 @@ fn main() -> Result<(), i8> {
             return Err(3)
         }
     };
-
     
     let mut lexer = lex::Status::new(input_file);
 
@@ -131,11 +128,15 @@ fn main() -> Result<(), i8> {
         token_list.push(token);
     }
 
+
+    for token in &token_list{
+        println!("{:?}", token)
+    }
     
 
     println!("input_file_name: {}", input_file_name);
     println!("output_file_name: {}", output_file_name);
-    println!("flags len: {}", output_file_types.len());
+    println!("token len: {}", token_list.len());
 
 
     Ok(())
