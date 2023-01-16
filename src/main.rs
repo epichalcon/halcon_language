@@ -1,12 +1,17 @@
 mod lex;
 mod TS;
 
+#[cfg(test)]
+mod tests;
+
 use std::fs::{File, self};
 use std::str::FromStr;
 
 use strum_macros::EnumString;
 
 use std::env;
+
+use crate::TS::TableAdmin;
 
 #[derive(EnumString)]
 enum Flags {
@@ -112,7 +117,9 @@ fn main() -> Result<(), i8> {
         }
     };
     
-    let mut lexer = lex::Status::new(input_file);
+    let mut ts = TableAdmin::new();
+    
+    let mut lexer = lex::Status::new(input_file, &mut ts);
 
     let mut cont_read = true;
 

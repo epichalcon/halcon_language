@@ -2,23 +2,24 @@ use std::{str::FromStr};
 mod token;
 mod tokenTypes;
 
-use crate::TS;
 
+use crate::TS::TableAdmin;
 
 pub use self::tokenTypes::TokenTypes;
 
 pub use self::token::Token;
 
-pub struct Status{
+pub struct Status<'a>{
     source: String,
     acum: String,
     line_counter: i32,
     char_index: usize,
+    ts: &'a mut TableAdmin,
 }
 
-impl Status {
-    pub fn new(s: String) -> Self{
-        Status { source: s, acum: "".to_string(), line_counter: 1, char_index: 0 }
+impl <'a> Status<'a> {
+    pub fn new(s: String, table: &'a mut TableAdmin) -> Self{
+        Status { source: s, acum: "".to_string(), line_counter: 1, char_index: 0, ts: table }
     }
 
     fn get_caracter(&mut self) -> char {
@@ -153,8 +154,9 @@ impl Status {
                         Some(Token::new(TokenTypes::ConstBool, self.acum.to_string()))
                     }
                     else{
+                        let pos = self.ts.handle_symbol(self.acum.to_string()).unwrap();
                         // TODO: mete el id en la TS 
-                        Some(Token::new(TokenTypes::Id, "1".to_string()))
+                        Some(Token::new(TokenTypes::Id, pos.to_string()))
                     }
                 }
             }
