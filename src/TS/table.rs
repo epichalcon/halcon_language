@@ -5,6 +5,7 @@ enum SymType{
     None, 
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 struct Symbol{
     name: String,
@@ -14,12 +15,15 @@ struct Symbol{
     ret_type: SymType
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct Table{
     identifier: i32,
     pub disp: i32,
     symbol_list: Vec<Symbol>,
 }
+
+#[allow(dead_code)]
 impl Table {
     pub fn new(id: i32) -> Self{
         Table { identifier: id, disp: 0, symbol_list: vec![]}

@@ -14,6 +14,7 @@ pub enum TokenTypes{
     Return,
     Raw, Begin,
     If, Elif, Else, For, Loop, While,
+    Input, Print,
     Coma, Semicolon, Colon, Opar, Cpar, Obraq, Cbrac, Okey, Ckey,
     ConstInt, ConstStr, ConstBool, ConstArr,
     Eof,

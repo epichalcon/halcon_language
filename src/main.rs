@@ -1,4 +1,6 @@
+
 mod lex;
+#[allow(non_snake_case)]
 mod TS;
 
 #[cfg(test)]
@@ -23,6 +25,7 @@ Options:
     -b              : output binary file
 ";
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Args{
     arg_input: String,
@@ -37,6 +40,7 @@ pub fn get_args() -> Args{
     .unwrap_or_else(|e| e.exit())
 }
 
+#[allow(unused_variables)]
 fn main() -> Result<(), i8> {
     let args: Args = get_args();
 

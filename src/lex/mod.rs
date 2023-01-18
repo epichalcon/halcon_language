@@ -1,5 +1,6 @@
-use std::{str::FromStr};
+use std::str::FromStr;
 mod token;
+#[allow(non_snake_case)]
 mod tokenTypes;
 
 

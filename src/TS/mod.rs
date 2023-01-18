@@ -6,6 +6,8 @@ pub struct TableAdmin{
     ts_stack: Vec<table::Table>,
     pub declaring: bool,
 }
+
+#[allow(dead_code)]
 impl TableAdmin {
     pub fn new() -> Self{
         TableAdmin{

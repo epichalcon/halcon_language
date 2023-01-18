@@ -10,3 +10,4 @@ strum_macros = "0.24"
 strum = "0.24"
 docopt = "1"
 serde = {version = "1", features = ["derive"]}
+pomelo = "0.1.5"
