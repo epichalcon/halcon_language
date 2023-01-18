@@ -1,4 +1,4 @@
-
+mod parser;
 mod lex;
 #[allow(non_snake_case)]
 mod TS;
