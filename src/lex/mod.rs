@@ -1,25 +1,21 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::str::FromStr;
-mod token;
-#[allow(non_snake_case)]
-mod tokenTypes;
 
+use crate::{TS::TableAdmin, parser::Pos};
 
-use crate::TS::TableAdmin;
+use crate::parser::Token;
 
-pub use self::tokenTypes::TokenTypes;
-
-pub use self::token::Token;
-
-pub struct Status<'a>{
+pub struct Status{
     source: String,
     acum: String,
     line_counter: i32,
     char_index: usize,
-    ts: &'a mut TableAdmin,
+    pub ts: TableAdmin,
 }
 
-impl <'a> Status<'a> {
-    pub fn new(s: String, table: &'a mut TableAdmin) -> Self{
+impl  Status {
+    pub fn new(s: String, table: TableAdmin) -> Self{
         Status { source: s, acum: "".to_string(), line_counter: 1, char_index: 0, ts: table }
     }
 
@@ -80,39 +76,39 @@ impl <'a> Status<'a> {
                 }
                 ',' => {
                     self.char_index += 1;
-                    return Some(Token::new(TokenTypes::Coma, "".to_string()))
+                    return Some(Token::Coma);
                 }
                 ';' => {
                     self.char_index += 1;
-                    return Some(Token::new(TokenTypes::Semicolon, "".to_string()))
+                    return Some(Token::Semicolon);
                 }
                 ':' => {
                     self.char_index += 1;
-                    return Some(Token::new(TokenTypes::Colon, "".to_string()))
+                    return Some(Token::Colon);
                 }
                 '(' => {
                     self.char_index += 1;
-                    return Some(Token::new(TokenTypes::Opar, "".to_string()))
+                    return Some(Token::Opar)
                 }
                 ')' => {
                     self.char_index += 1;
-                    return Some(Token::new(TokenTypes::Cpar, "".to_string()))
+                    return Some(Token::Cpar)
                 }
                 '[' => {
                     self.char_index += 1;
-                    return Some(Token::new(TokenTypes::Obraq, "".to_string()))
+                    return Some(Token::Obraq)
                 }
                 ']' => {
                     self.char_index += 1;
-                    return Some(Token::new(TokenTypes::Cbrac, "".to_string()))
+                    return Some(Token::Cbrac)
                 }
                 '{' => {
                     self.char_index += 1;
-                    return Some(Token::new(TokenTypes::Okey, "".to_string()))
+                    return Some(Token::Okey)
                 }
                 '}' => {
                     self.char_index += 1;
-                    return Some(Token::new(TokenTypes::Ckey, "".to_string()))
+                    return Some(Token::Ckey)
                 }
                 ' ' => {
                     self.char_index += 1;
@@ -128,7 +124,7 @@ impl <'a> Status<'a> {
                     return self.get_token()
                 }
                 '$' => {
-                    return Some(Token::new(TokenTypes::Eof, "".to_string()))
+                    return Some(Token::Eof)
                 }
                 _ => {
                     println!("rest");
@@ -146,18 +142,22 @@ impl <'a> Status<'a> {
             self.word_state()
         }
         else{
-            match TokenTypes::from_str(&first_letter_to_upper(&self.acum).as_str()){
+            match Token::from_str(&first_letter_to_upper(&self.acum).as_str()){
                 Ok(token) =>{
-                    Some(Token::new(token, "".to_string()))
+                    Some(token)
                 }
                 Err(_) => {
-                    if self.acum == "true" || self.acum == "false"{
-                        Some(Token::new(TokenTypes::ConstBool, self.acum.to_string()))
+                    if self.acum == "true"{
+                        Some(Token::ConstBool(true))
+                    }
+                    else if self.acum == "false"{
+                        Some(Token::ConstBool(true))
                     }
                     else{
-                        let pos = self.ts.handle_symbol(self.acum.to_string()).unwrap();
+                        //let pos = self.ts.handle_symbol(self.acum.to_string()).unwrap();
                         // TODO: mete el id en la TS 
-                        Some(Token::new(TokenTypes::Id, pos.to_string()))
+                        let pos = 1;
+                        Some(Token::Id( Pos {table: 0, position: pos}))
                     }
                 }
             }
@@ -178,7 +178,7 @@ impl <'a> Status<'a> {
             self.float_inter_state()
         }
         else{
-            Some(Token::new(TokenTypes::ConstInt, self.acum.to_string()))
+            Some(Token::ConstInt(self.acum.parse::<i32>().unwrap()))
         }
     }
 
@@ -204,7 +204,7 @@ impl <'a> Status<'a> {
             self.float_state()
         }
         else{
-            Some(Token::new(TokenTypes::ConstInt, self.acum.to_string()))
+            Some(Token::ConstFloat(self.acum.parse::<f32>().unwrap()))
         }
     }
 
@@ -215,15 +215,15 @@ impl <'a> Status<'a> {
             '+' => {
                 self.char_index += 1;
                 self.acum.push(character);
-                Some(Token::new(TokenTypes::Inc, "".to_string()))
+                Some(Token::Inc)
             }
             '=' =>{
                 self.char_index += 1;
                 self.acum.push(character);
-                Some(Token::new(TokenTypes::SumAsig, "".to_string()))
+                Some(Token::SumAsig)
             }
             _ => {
-                Some(Token::new(TokenTypes::Plus, "".to_string()))
+                Some(Token::Plus)
             }
         }
     }
@@ -235,20 +235,20 @@ impl <'a> Status<'a> {
             '-' => {
                 self.char_index += 1;
                 self.acum.push(character);
-                Some(Token::new(TokenTypes::Dec, "".to_string()))
+                Some(Token::Dec)
             }
             '=' => {
                 self.char_index += 1;
                 self.acum.push(character);
-                Some(Token::new(TokenTypes::MinAsig, "".to_string()))
+                Some(Token::MinAsig)
             }
             '>' => {
                 self.char_index += 1;
                 self.acum.push(character);
-                Some(Token::new(TokenTypes::Arrow, "".to_string()))
+                Some(Token::Arrow)
             }
             _ => {
-                Some(Token::new(TokenTypes::Minus, "".to_string()))
+                Some(Token::Minus)
             }
         }
     }
@@ -260,10 +260,10 @@ impl <'a> Status<'a> {
             '=' =>{
                 self.char_index += 1;
                 self.acum.push(character);
-                Some(Token::new(TokenTypes::MulAsig, "".to_string()))
+                Some(Token::MulAsig)
             }
             _ => {
-                Some(Token::new(TokenTypes::Mult, "".to_string()))
+                Some(Token::Mult)
             }
         }
 
@@ -276,16 +276,16 @@ impl <'a> Status<'a> {
             '=' =>{
                 self.char_index += 1;
                 self.acum.push(character);
-                Some(Token::new(TokenTypes::DivAsig, "".to_string()))
+                Some(Token::DivAsig)
             }
             _ => {
-                Some(Token::new(TokenTypes::Div, "".to_string()))
+                Some(Token::Div)
             }
         }
     }
 
     fn mod_state(&mut self) -> Option<Token> {
-        Some(Token::new(TokenTypes::Mod, "".to_string()))
+        Some(Token::Mod)
     }
 
     fn eq_state(&mut self) -> Option<Token> {
@@ -295,10 +295,10 @@ impl <'a> Status<'a> {
             '=' =>{
                 self.char_index += 1;
                 self.acum.push(character);
-                Some(Token::new(TokenTypes::Eq, "".to_string()))
+                Some(Token::Eq)
             }
             _ => {
-                Some(Token::new(TokenTypes::Assig, "".to_string()))
+                Some(Token::Assig)
             }
         }
     }
@@ -310,7 +310,7 @@ impl <'a> Status<'a> {
             '=' =>{
                 self.char_index += 1;
                 self.acum.push(character);
-                Some(Token::new(TokenTypes::Neq, "".to_string()))
+                Some(Token::Neq)
             }
             _ => {
                 None
@@ -325,10 +325,10 @@ impl <'a> Status<'a> {
             '=' =>{
                 self.char_index += 1;
                 self.acum.push(character);
-                Some(Token::new(TokenTypes::Le, "".to_string()))
+                Some(Token::Le)
             }
             _ => {
-                Some(Token::new(TokenTypes::Lt, "".to_string()))
+                Some(Token::Lt)
             }
         }
     }
@@ -340,10 +340,10 @@ impl <'a> Status<'a> {
             '=' =>{
                 self.char_index += 1;
                 self.acum.push(character);
-                Some(Token::new(TokenTypes::Ge, "".to_string()))
+                Some(Token::Ge)
             }
             _ => {
-                Some(Token::new(TokenTypes::Gt, "".to_string()))
+                Some(Token::Gt)
             }
         }
     }

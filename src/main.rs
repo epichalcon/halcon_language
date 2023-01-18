@@ -6,13 +6,16 @@ mod TS;
 #[cfg(test)]
 mod tests;
 
+use std::cell::RefCell;
 use std::fs::{File, self};
+use std::rc::Rc;
 
 use docopt::Docopt;
 use serde::Deserialize;
 
 
 
+use crate::parser::{Token, parse};
 use crate::TS::TableAdmin;
 
 
@@ -73,18 +76,18 @@ fn main() -> Result<(), i8> {
         }
     };
     
-    let mut ts = TableAdmin::new();
+    let ts = TableAdmin::new();
     
-    let mut lexer = lex::Status::new(input_file, &mut ts);
+    let mut lexer = lex::Status::new(input_file, ts);
 
     let mut cont_read = true;
 
-    let mut token_list: Vec<lex::Token> = Vec::new();
+    let mut token_list: Vec<Token> = Vec::new();
 
     while cont_read {
-        let token: lex::Token = lexer.get_token().unwrap();
+        let token: Token = lexer.get_token().unwrap();
 
-        if token.token_type == lex::TokenTypes::Eof{
+        if token == Token::Eof{
             cont_read = false;
         }
 
