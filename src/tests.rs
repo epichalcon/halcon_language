@@ -1,3 +1,5 @@
+use crate::TS::TsOption;
+
 use super::*;
 
 // main TESTS
@@ -54,7 +56,7 @@ fn get_args_test4(){
     let argv = vec!["halcon", "input.txt", "output.txt", "-c", "-b"];
     
     let args: Args = Docopt::new(USAGE).and_then(|d| d.argv(argv.into_iter()).deserialize())
-    .unwrap_or_else(|e| e.exit());
+    .unwrap();
     
     assert_eq!(args.arg_input, "input.txt".to_string());
     assert_eq!(args.arg_output, "output.txt".to_string());
@@ -63,6 +65,15 @@ fn get_args_test4(){
     assert_eq!(args.flag_o, false);
 }
 
+#[test]
+#[should_panic]
+fn get_args_test5(){
+    
+    let argv = vec!["halcon", "input.txt", "output.txt", "-d"];
+    
+    let _: Args = Docopt::new(USAGE).and_then(|d| d.argv(argv.into_iter()).deserialize())
+    .unwrap();
+}
 
 // TS TESTS ****************************************************
 #[test]
@@ -97,51 +108,76 @@ fn search_for_name_test() {
 
 #[test]
 fn handle_symbol_global_test() {
-    let mut ts = TS::TableAdmin::new();
+    let (send_to_ts, ts_reciever) = sync_channel(16);
+    let (ts_sender, reciev_from_ts) = sync_channel(16);
+    
+    let mut ts = TableAdmin::new(ts_reciever, ts_sender);
+    
+    let handle = thread::spawn(move || ts.external_interface());
+    
+    
+    send_to_ts.send(TsOption::Handle("num".to_string()));
 
-    let err_table = ts.handle_symbol("num".to_string());
+    let err_table = reciev_from_ts.recv().unwrap();
     assert_eq!(err_table, Err("No tables created".to_string()));
     
-    ts.create_table();
+    send_to_ts.send(TsOption::Create);
     
 
-    ts.declaring = true;
-    let pos_num = ts.handle_symbol("num".to_string());
+    send_to_ts.send(TsOption::StartDeclaring);
+
+    send_to_ts.send(TsOption::Handle("num".to_string()));
+    let pos_num = reciev_from_ts.recv().unwrap();
     assert_eq!(pos_num, Ok(0));
 
-    let err_dup = ts.handle_symbol("num".to_string());
+
+    send_to_ts.send(TsOption::Handle("num".to_string()));
+    let err_dup = reciev_from_ts.recv().unwrap();
     assert_eq!(err_dup, Err("can't declare a variable twice".to_string()));
 
-    ts.declaring = false;
-    let err_not_decl = ts.handle_symbol("a".to_string());
+    send_to_ts.send(TsOption::StopDeclaring);
+
+    send_to_ts.send(TsOption::Handle("a".to_string()));
+    let err_not_decl = reciev_from_ts.recv().unwrap();
     assert_eq!(err_not_decl, Err("can't find the variable".to_string()));
     
-    let pos_num_2 = ts.handle_symbol("num".to_string());
+    send_to_ts.send(TsOption::Handle("num".to_string()));
+    let pos_num_2 = reciev_from_ts.recv().unwrap();
     assert_eq!(pos_num, pos_num_2);
 }
 
 
 #[test]
 fn handle_symbol_local_test() {
-    let mut ts = TS::TableAdmin::new();
-
-    ts.create_table();
+    let (send_to_ts, ts_reciever) = sync_channel(16);
+    let (ts_sender, reciev_from_ts) = sync_channel(16);
     
-    ts.declaring = true;
-    let pos_num = ts.handle_symbol("num_global".to_string());
+    let mut ts = TableAdmin::new(ts_reciever, ts_sender);
+    
+    let handle = thread::spawn(move || ts.external_interface());
+    send_to_ts.send(TsOption::Create);
+    
+
+    send_to_ts.send(TsOption::StartDeclaring);
+
+    send_to_ts.send(TsOption::Handle("num_global".to_string()));
+    let pos_num = reciev_from_ts.recv().unwrap();
     assert_eq!(pos_num, Ok(0));
 
-    ts.create_table();
+    send_to_ts.send(TsOption::Create);
 
-    let pos_num = ts.handle_symbol("num_local".to_string());
+    send_to_ts.send(TsOption::Handle("num_local".to_string()));
+    let pos_num = reciev_from_ts.recv().unwrap();
     assert_eq!(pos_num, Ok(0));
     
-    ts.declaring = false;
-    let pos_num = ts.handle_symbol("num_global".to_string());
+    send_to_ts.send(TsOption::StopDeclaring);
+    send_to_ts.send(TsOption::Handle("num_global".to_string()));
+    let pos_num = reciev_from_ts.recv().unwrap();
     assert_eq!(pos_num, Ok(0));
     
     
-    ts.declaring = true;
-    let pos_num = ts.handle_symbol("num_global".to_string());
+    send_to_ts.send(TsOption::StartDeclaring);
+    send_to_ts.send(TsOption::Handle("num_global".to_string()));
+    let pos_num = reciev_from_ts.recv().unwrap();
     assert_eq!(pos_num, Ok(1));
 }

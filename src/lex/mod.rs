@@ -1,8 +1,9 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, sync::mpsc::Receiver};
 use std::rc::Rc;
 use std::str::FromStr;
+use std::sync::mpsc::SyncSender;
 
-use crate::{TS::TableAdmin, parser::Pos};
+use crate::{TS::{TableAdmin, TsOption}, parser::Pos};
 
 use crate::parser::Token;
 
@@ -11,12 +12,13 @@ pub struct Status{
     acum: String,
     line_counter: i32,
     char_index: usize,
-    pub ts: TableAdmin,
+    send_to_ts: SyncSender<TsOption>,
+    reciev_from_ts: Receiver<Result<i32, String>>,
 }
 
 impl  Status {
-    pub fn new(s: String, table: TableAdmin) -> Self{
-        Status { source: s, acum: "".to_string(), line_counter: 1, char_index: 0, ts: table }
+    pub fn new(s: String, send_to_ts: SyncSender<TsOption>, reciev_from_ts: Receiver<Result<i32, String>>) -> Self{
+        Status { source: s, acum: "".to_string(), line_counter: 1, char_index: 0, send_to_ts: send_to_ts, reciev_from_ts: reciev_from_ts }
     }
 
     fn get_caracter(&mut self) -> char {

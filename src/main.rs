@@ -6,9 +6,9 @@ mod TS;
 #[cfg(test)]
 mod tests;
 
-use std::cell::RefCell;
 use std::fs::{File, self};
-use std::rc::Rc;
+use std::sync::mpsc::sync_channel;
+use std::thread;
 
 use docopt::Docopt;
 use serde::Deserialize;
@@ -76,10 +76,19 @@ fn main() -> Result<(), i8> {
         }
     };
     
-    let ts = TableAdmin::new();
+    let (send_to_ts, ts_reciever) = sync_channel(16);
+    let (ts_sender, reciev_from_ts) = sync_channel(16);
     
-    let mut lexer = lex::Status::new(input_file, ts);
+    let mut ts = TableAdmin::new(ts_reciever, ts_sender);
+    let handle = thread::spawn(move || ts.external_interface());
+    
+    let send2 = send_to_ts.clone();
+    
+    let lexer = lex::Status::new(input_file, send_to_ts, reciev_from_ts);
+    
+    parse(lexer, send2);
 
+    /*
     let mut cont_read = true;
 
     let mut token_list: Vec<Token> = Vec::new();
@@ -98,11 +107,12 @@ fn main() -> Result<(), i8> {
     for token in &token_list{
         println!("{:?}", token)
     }
+    */
     
 
     println!("input_file_name: {}", input_file_name);
     println!("output_file_name: {}", output_file_name);
-    println!("token len: {}", token_list.len());
+    //println!("token len: {}", token_list.len());
 
 
     Ok(())

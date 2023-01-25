@@ -1,7 +1,7 @@
-use std::{rc::Rc, cell::RefCell};
+use std::sync::mpsc::SyncSender;
 
 use pomelo::pomelo;
-use crate::{lex::Status, TS::TableAdmin};
+use crate::{lex::Status, TS::TsOption};
 
 pub use self::parser::{Parser, Token};
 
@@ -14,13 +14,13 @@ pub struct Pos {
 // I won't implement the beguin and the raw statements yet
 
 pomelo!{
-    %include {use crate::TS::TableAdmin;
+    %include {use crate::TS::TsOption;
             use crate::parser::Pos;
             use strum_macros::EnumString;}
     %token #[derive(Debug, EnumString, PartialEq, Clone)]
             pub enum Token{};
     %parser pub struct Parser{};
-    %extra_argument TableAdmin;
+    %extra_argument std::sync::mpsc::SyncSender<TsOption>;
 
     %start_symbol program;
 
@@ -177,8 +177,8 @@ pomelo!{
     leaf ::= Id | Opar expresion Cpar | Id Opar pass_param Cpar | ConstInt | ConstFloat | ConstBool | ConstStr | Id Obraq expresion Cbrac;
 }
 
-pub fn parse (mut lex: Status, ts: TableAdmin) {
-    let mut p = Parser::new(ts);
+pub fn parse (mut lex: Status, send_to_ts: SyncSender<TsOption>) {
+    let mut p = Parser::new(send_to_ts);
     loop {
         let token: Token = match lex.get_token() {
             Some(t) => t.clone(),

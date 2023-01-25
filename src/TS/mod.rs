@@ -1,31 +1,63 @@
+use std::sync::{Arc, mpsc::{Receiver, SyncSender}};
+
 use self::table::Table;
 
 pub(crate) mod table;
 
+pub enum TsOption {
+    Create, Destroy, Handle(String), StartDeclaring, StopDeclaring,  End
+}
+
+
 pub struct TableAdmin{
     ts_stack: Vec<table::Table>,
-    pub declaring: bool,
+    declaring: bool,
+    in_channel: Receiver<TsOption>,
+    out_channel: SyncSender<Result<i32, String>>,
 }
 
 #[allow(dead_code)]
 impl TableAdmin {
-    pub fn new() -> Self{
+    pub fn new(in_cannel: Receiver<TsOption>, out_channel: SyncSender<Result<i32, String>>) -> Self{
         TableAdmin{
             ts_stack: vec![],
             declaring: false,
+            in_channel: in_cannel,
+            out_channel: out_channel
+        }
+    }
+    
+    pub fn external_interface(&mut self) {
+        loop {
+            match self.in_channel.recv(){
+                Ok(option) => {
+                    match option{
+                        TsOption::Create => self.create_table(),
+                        TsOption::Destroy => self.destroy_table(),
+                        TsOption::Handle(name) => {let res = self.handle_symbol(name);
+                                                    self.out_channel.send(res);},
+                        TsOption::StartDeclaring => self.declaring = true,
+                        TsOption::StopDeclaring => self.declaring = false,
+                        TsOption::End => break,
+                    }
+                },
+                Err(_) => {
+                    break
+                },
+            }
         }
     }
 
-    pub fn create_table(&mut self){
+    fn create_table(&mut self){
         self.ts_stack.push(Table::new(self.ts_stack.len().try_into().unwrap()))
     }
 
-    pub fn destroy_table(&mut self){
+    fn destroy_table(&mut self){
         self.ts_stack.pop();
     }
 
     // Called by lex to add a symbol to a table or get the symbol position
-    pub fn handle_symbol(&mut self,name: String) -> Result<i32, String> {
+    fn handle_symbol(&mut self,name: String) -> Result<i32, String> {
         
         if self.ts_stack.len() == 0 {
             return  Err("No tables created".to_string());
