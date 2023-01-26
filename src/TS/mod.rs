@@ -1,9 +1,11 @@
-use std::sync::{Arc, mpsc::{Receiver, SyncSender}};
+use std::sync::mpsc::{Receiver, SyncSender};
 
 use self::table::Table;
 
 pub(crate) mod table;
 
+#[allow(dead_code)]
+#[derive(Debug)]
 pub enum TsOption {
     Create, Destroy, Handle(String), StartDeclaring, StopDeclaring,  End
 }
@@ -35,7 +37,7 @@ impl TableAdmin {
                         TsOption::Create => self.create_table(),
                         TsOption::Destroy => self.destroy_table(),
                         TsOption::Handle(name) => {let res = self.handle_symbol(name);
-                                                    self.out_channel.send(res);},
+                                                    self.out_channel.send(res).unwrap();},
                         TsOption::StartDeclaring => self.declaring = true,
                         TsOption::StopDeclaring => self.declaring = false,
                         TsOption::End => break,
@@ -58,6 +60,7 @@ impl TableAdmin {
 
     // Called by lex to add a symbol to a table or get the symbol position
     fn handle_symbol(&mut self,name: String) -> Result<i32, String> {
+        print!("{}", name);
         
         if self.ts_stack.len() == 0 {
             return  Err("No tables created".to_string());

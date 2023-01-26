@@ -1,12 +1,12 @@
-use std::{cell::RefCell, sync::mpsc::Receiver};
-use std::rc::Rc;
+use std::sync::mpsc::Receiver;
 use std::str::FromStr;
 use std::sync::mpsc::SyncSender;
 
-use crate::{TS::{TableAdmin, TsOption}, parser::Pos};
+use crate::{TS::TsOption, parser::Pos};
 
 use crate::parser::Token;
 
+#[allow(dead_code)]
 pub struct Status{
     source: String,
     acum: String,
@@ -27,7 +27,6 @@ impl  Status {
 
     pub fn get_token(&mut self) -> Option<Token>{ // axioma del automata
         let character: char = Status::get_caracter(self);
-        println!("character: {}", character);
 
         if character.is_alphabetic() {
                 self.acum = character.to_string();
@@ -35,6 +34,7 @@ impl  Status {
                 return Status::word_state(self);
             }
         else if character.is_numeric() {
+                self.acum = character.to_string();
                 self.char_index += 1;
                 return self.num_state();
             }

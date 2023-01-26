@@ -96,12 +96,11 @@ pomelo!{
  
     program ::= continue_state;
 
-    continue_state ::= simple_statement continue_state;
-    continue_state ::= complex_statement continue_state;
-    continue_state ::= function continue_state;
-    continue_state ::= declaration continue_state;
-    continue_state ::= begin_state continue_state;
-    continue_state ::= Eof;
+    continue_state ::= simple_statement continue_state? Eof;
+    continue_state ::= complex_statement continue_state? Eof;
+    continue_state ::= function continue_state? Eof;
+    continue_state ::= declaration continue_state? Eof;
+    continue_state ::= begin_state continue_state? Eof;
 
     begin_state ::= Begin Okey inside? Ckey ;
 
@@ -110,14 +109,14 @@ pomelo!{
     simple_statement ::= Print expresion Semicolon;
     simple_statement ::= Input Id Semicolon;
     simple_statement ::= Return expresion? Semicolon;
-    simple_statement ::= asignation;
+    simple_statement ::= asignation Semicolon;
 
     complex_statement ::= while_state;
     complex_statement ::= loop_state;
     complex_statement ::= for_state;
     complex_statement ::= if_else_state;
 
-    declaration ::= Let Id type_state Semicolon;
+    declaration ::= Let Id Colon type_state Semicolon;
     function ::= Fun Id Opar decl_param? Cpar return_type? Okey inside? Ckey;
 
     //function
@@ -132,10 +131,11 @@ pomelo!{
     elif_state ::= Elif Opar expresion Cpar Okey inside? Ckey elif_state?;
     else_state ::= Else Okey inside? Ckey;
 
-    for_state ::= For Opar declaration initialization inc_dec_state  Semicolon Cpar Okey inside? Ckey;
+    for_state ::= For Opar declaration initialization Semicolon relation_expression Semicolon inc_dec_state Cpar Okey inside? Ckey;
     inc_dec_state ::= Id inc_dec_tok;
 
-    inc_dec_tok ::= Inc|Dec;
+    inc_dec_tok ::= Inc;
+    inc_dec_tok ::= Dec;
 
     loop_state ::= Loop Okey inside? Ckey;
 
@@ -147,12 +147,19 @@ pomelo!{
     initialization ::= Id Assig expresion;
     asignation ::= Id asig_tok expresion;
     
-    asig_tok ::= SumAsig | MinAsig | MulAsig | DivAsig;
+    asig_tok ::= SumAsig;
+    asig_tok ::= MinAsig;
+    asig_tok ::= MulAsig;
+    asig_tok ::= DivAsig;
 
     pass_param ::= Id pass_another_param?;
     pass_another_param ::= Coma pass_param;
 
-    type_state ::= Int | Str | Bool | Float | Arr Obraq ConstInt Cbrac Colon type_state;
+    type_state ::= Int;
+    type_state ::= Str;
+    type_state ::= Bool;
+    type_state ::= Float;
+    type_state ::= Arr Obraq ConstInt Cbrac Colon type_state;
 
     expresion ::= expresion logic_operator relation_expression;
     expresion ::= relation_expression;
@@ -167,24 +174,47 @@ pomelo!{
     unary_expresion ::= unary_expresion unary_operator leaf; 
     unary_expresion ::= leaf; 
 
-    logic_operator ::= And|Or; 
-    relation_operator ::= Eq|Neq;
-    order_operator ::= Lt|Gt|Le|Ge;
-    sum_operator ::= Plus|Minus;
-    mul_operator ::= Mult|Div|Mod;
-    unary_operator ::= Inc|Dec|Not;
+    logic_operator ::= And; 
+    logic_operator ::= Or; 
+    relation_operator ::= Eq;
+    relation_operator ::= Neq;
+    order_operator ::= Ge;
+    order_operator ::= Lt;
+    order_operator ::= Gt;
+    order_operator ::= Le;
+    sum_operator ::= Plus;
+    sum_operator ::= Minus;
+    mul_operator ::= Mult;
+    mul_operator ::= Div;
+    mul_operator ::= Mod;
+    unary_operator ::= Inc;
+    unary_operator ::= Dec;
+    unary_operator ::= Not;
 
-    leaf ::= Id | Opar expresion Cpar | Id Opar pass_param Cpar | ConstInt | ConstFloat | ConstBool | ConstStr | Id Obraq expresion Cbrac;
+    leaf ::= Id;
+    leaf ::= Opar expresion Cpar;
+    leaf ::= Id Opar pass_param Cpar ;
+    leaf ::= ConstInt ;
+    leaf ::= ConstFloat;
+    leaf ::= ConstBool ;
+    leaf ::= ConstStr ;
+    leaf ::= Id Obraq expresion Cbrac;
 }
 
-pub fn parse (mut lex: Status, send_to_ts: SyncSender<TsOption>) {
+pub fn parse (mut lex: Status, send_to_ts: SyncSender<TsOption>) -> Result<(), ()> {
     let mut p = Parser::new(send_to_ts);
+    let status = Ok(());
     loop {
         let token: Token = match lex.get_token() {
             Some(t) => t.clone(),
             None => break
         };
+        let ctok: Token = token.clone();
         let res = p.parse(token);
-        println!("{:?} ", res);
+        match res {
+            Ok(()) => {println!("parsed {:?} ", ctok); if ctok == Token::Eof {return status}},
+            Err(()) => {println!("failed at {:?} ", ctok); return Err(())},
+        }
     }
+    status
 }

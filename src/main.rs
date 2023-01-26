@@ -15,7 +15,7 @@ use serde::Deserialize;
 
 
 
-use crate::parser::{Token, parse};
+use crate::parser::parse;
 use crate::TS::TableAdmin;
 
 
@@ -86,7 +86,10 @@ fn main() -> Result<(), i8> {
     
     let lexer = lex::Status::new(input_file, send_to_ts, reciev_from_ts);
     
-    parse(lexer, send2);
+    match parse(lexer, send2){
+        Ok(()) => println!("parse succesfull"),
+        Err(()) => println!("error in the parsing"),
+    }
 
     /*
     let mut cont_read = true;
