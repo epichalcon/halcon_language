@@ -1,14 +1,15 @@
 // mod parser;
 #[allow(non_snake_case)]
 mod TS;
-mod lex;
+mod lexer;
+mod repl;
 mod token;
 
 #[cfg(test)]
 // mod tests;
 use std::fs::{self, File};
 use std::sync::mpsc::sync_channel;
-use std::thread;
+use std::{io, thread};
 
 use docopt::Docopt;
 use serde::Deserialize;
@@ -41,8 +42,13 @@ pub fn get_args() -> Args {
         .unwrap_or_else(|e| e.exit())
 }
 
+fn main() {
+    println!("Welcome to halcon");
+    repl::start(io::stdin(), io::stdout());
+}
+
 #[allow(unused_variables)]
-fn main() -> Result<(), i8> {
+fn main1() -> Result<(), i8> {
     let args: Args = get_args();
 
     let input_file_name = args.arg_input;
