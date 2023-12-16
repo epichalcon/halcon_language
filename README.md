@@ -1,5 +1,7 @@
 # Mylanguage: Halcon
 
+![Work In Progress](https://img.shields.io/badge/Work%20In%20Progress-orange?style=for-the-badge)
+
 In this proyect I would like to try to write a simple compiler that can compile and execute a simple language. The goal is to practice the knoledge aquired in class (Procesadores del lenguaje) and try to expand it so that the code can be executed as well as compiled. Another goal of this proyect is to practice with rust.
 
 ---
