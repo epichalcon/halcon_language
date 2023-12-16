@@ -44,7 +44,7 @@ impl Lexer {
         self.read_position += 1;
     }
 
-    fn next_token(&mut self) -> Token {
+    pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
         let token: Token = match self.ch {
@@ -206,7 +206,7 @@ impl Lexer {
         self.read_char();
         let position = self.position;
 
-        while self.ch != b'"' {
+        while self.read_position < self.input.len() && self.ch != b'"' {
             self.read_char();
         }
 
