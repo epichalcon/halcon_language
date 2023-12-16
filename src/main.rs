@@ -1,23 +1,20 @@
-mod parser;
-mod lex;
+// mod parser;
 #[allow(non_snake_case)]
 mod TS;
+mod lex;
+mod token;
 
 #[cfg(test)]
-mod tests;
-
-use std::fs::{File, self};
+// mod tests;
+use std::fs::{self, File};
 use std::sync::mpsc::sync_channel;
 use std::thread;
 
 use docopt::Docopt;
 use serde::Deserialize;
 
-
-
-use crate::parser::parse;
-use crate::TS::TableAdmin;
-
+// use crate::parser::parse;
+// use crate::TS::TableAdmin;
 
 static USAGE: &'static str = "
 Usage: halcon <input> <output> [-c] [-o] [-b] ...
@@ -30,7 +27,7 @@ Options:
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
-pub struct Args{
+pub struct Args {
     arg_input: String,
     arg_output: String,
     flag_c: bool,
@@ -38,58 +35,61 @@ pub struct Args{
     flag_b: bool,
 }
 
-pub fn get_args() -> Args{
-    Docopt::new(USAGE).and_then(|d| d.deserialize())
-    .unwrap_or_else(|e| e.exit())
+pub fn get_args() -> Args {
+    Docopt::new(USAGE)
+        .and_then(|d| d.deserialize())
+        .unwrap_or_else(|e| e.exit())
 }
 
 #[allow(unused_variables)]
 fn main() -> Result<(), i8> {
     let args: Args = get_args();
 
-    
-
     let input_file_name = args.arg_input;
     let output_file_name = args.arg_output;
 
-
-
     // se comprueba la validez de los flags
 
-    let file_result = fs::read_to_string(&input_file_name);
-    let input_file = match file_result {
-        Ok(file) => file ,
-        Err(_) => {
-            println!("
-                Not able to open {}", &input_file_name);
-            return Err(3)
-        }
-    };
+    // let file_result = fs::read_to_string(&input_file_name);
+    // let input_file = match file_result {
+    //     Ok(file) => file,
+    //     Err(_) => {
+    //         println!(
+    //             "
+    //             Not able to open {}",
+    //             &input_file_name
+    //         );
+    //         return Err(3);
+    //     }
+    // };
+    //
+    // let file_result = File::create(&output_file_name);
+    // let output_file = match file_result {
+    //     Ok(file) => file,
+    //     Err(_) => {
+    //         println!(
+    //             "
+    //             Not able to open {}",
+    //             &output_file_name
+    //         );
+    //         return Err(3);
+    //     }
+    // };
 
-    let file_result = File::create(&output_file_name);
-    let output_file = match file_result {
-        Ok(file) => file ,
-        Err(_) => {
-            println!("
-                Not able to open {}", &output_file_name);
-            return Err(3)
-        }
-    };
-    
-    let (send_to_ts, ts_reciever) = sync_channel(16);
-    let (ts_sender, reciev_from_ts) = sync_channel(16);
-    
-    let mut ts = TableAdmin::new(ts_reciever, ts_sender);
-    let handle = thread::spawn(move || ts.external_interface());
-    
-    let send2 = send_to_ts.clone();
-    
-    let lexer = lex::Status::new(input_file, send_to_ts, reciev_from_ts);
-    
-    match parse(lexer, send2){
-        Ok(()) => println!("parse succesfull"),
-        Err(()) => println!("error in the parsing"),
-    }
+    // let (send_to_ts, ts_reciever) = sync_channel(16);
+    // let (ts_sender, reciev_from_ts) = sync_channel(16);
+
+    // let mut ts = TableAdmin::new(ts_reciever, ts_sender);
+    // let handle = thread::spawn(move || ts.external_interface());
+    //
+    // let send2 = send_to_ts.clone();
+    //
+    // let lexer = lex::Status::new(input_file, send_to_ts, reciev_from_ts);
+    //
+    // match parse(lexer, send2) {
+    //     Ok(()) => println!("parse succesfull"),
+    //     Err(()) => println!("error in the parsing"),
+    // }
 
     /*
     let mut cont_read = true;
@@ -111,12 +111,10 @@ fn main() -> Result<(), i8> {
         println!("{:?}", token)
     }
     */
-    
 
     println!("input_file_name: {}", input_file_name);
     println!("output_file_name: {}", output_file_name);
     //println!("token len: {}", token_list.len());
-
 
     Ok(())
 }

@@ -1,358 +1,460 @@
 use std::sync::mpsc::Receiver;
-use std::str::FromStr;
 use std::sync::mpsc::SyncSender;
 
-use crate::{TS::TsOption, parser::Pos};
+use crate::token::Token;
+use crate::TS::TsOption;
 
-use crate::parser::Token;
-
-#[allow(dead_code)]
-pub struct Status{
-    source: String,
-    acum: String,
-    line_counter: i32,
-    char_index: usize,
-    send_to_ts: SyncSender<TsOption>,
-    reciev_from_ts: Receiver<Result<i32, String>>,
+trait Letter {
+    fn is_letter(self) -> bool;
 }
 
-impl  Status {
-    pub fn new(s: String, send_to_ts: SyncSender<TsOption>, reciev_from_ts: Receiver<Result<i32, String>>) -> Self{
-        Status { source: s, acum: "".to_string(), line_counter: 1, char_index: 0, send_to_ts: send_to_ts, reciev_from_ts: reciev_from_ts }
+impl Letter for u8 {
+    fn is_letter(self) -> bool {
+        self.is_ascii_alphabetic() || self == b'_'
+    }
+}
+pub struct Lexer {
+    input: Vec<u8>,
+    position: usize,
+    read_position: usize,
+    ch: u8,
+}
+
+impl Lexer {
+    pub fn new(input: String) -> Self {
+        let mut lexer = Lexer {
+            input: input.into_bytes(),
+            position: 0,
+            read_position: 0,
+            ch: 0,
+        };
+
+        lexer.read_char();
+        lexer
     }
 
-    fn get_caracter(&mut self) -> char {
-        self.source.chars().nth(self.char_index).unwrap_or('$')
+    fn read_char(&mut self) {
+        if self.read_position >= self.input.len() {
+            self.ch = 0;
+        } else {
+            self.ch = self.input[self.read_position];
+        }
+
+        self.position = self.read_position;
+        self.read_position += 1;
     }
 
-    pub fn get_token(&mut self) -> Option<Token>{ // axioma del automata
-        let character: char = Status::get_caracter(self);
+    fn next_token(&mut self) -> Token {
+        self.skip_whitespace();
 
-        if character.is_alphabetic() {
-                self.acum = character.to_string();
-                self.char_index += 1;
-                return Status::word_state(self);
-            }
-        else if character.is_numeric() {
-                self.acum = character.to_string();
-                self.char_index += 1;
-                return self.num_state();
-            }
-        else{
-            match character {
-                '+' => {
-                    self.char_index += 1;
-                    return self.sum_state();
-                }
-                '-' => {
-                    self.char_index += 1;
-                    return self.minus_state();
-                }
-                '*' => {
-                    self.char_index += 1;
-                    return self.mul_state();
-                }
-                '/' => {
-                    self.char_index += 1;
-                    return self.div_state();
-                }
-                '%' => {
-                    self.char_index += 1;
-                    return self.mod_state();
-                }
-                '=' => {
-                    self.char_index += 1;
-                    return self.eq_state();
-                }
-                '!' => {
-                    self.char_index += 1;
-                    return self.not_state();
-                }
-                '<' => {
-                    self.char_index += 1;
-                    return self.less_state();
-                }
-                '>' => {
-                    self.char_index += 1;
-                    return self.gr_state();
-                }
-                ',' => {
-                    self.char_index += 1;
-                    return Some(Token::Coma);
-                }
-                ';' => {
-                    self.char_index += 1;
-                    return Some(Token::Semicolon);
-                }
-                ':' => {
-                    self.char_index += 1;
-                    return Some(Token::Colon);
-                }
-                '(' => {
-                    self.char_index += 1;
-                    return Some(Token::Opar)
-                }
-                ')' => {
-                    self.char_index += 1;
-                    return Some(Token::Cpar)
-                }
-                '[' => {
-                    self.char_index += 1;
-                    return Some(Token::Obraq)
-                }
-                ']' => {
-                    self.char_index += 1;
-                    return Some(Token::Cbrac)
-                }
-                '{' => {
-                    self.char_index += 1;
-                    return Some(Token::Okey)
-                }
-                '}' => {
-                    self.char_index += 1;
-                    return Some(Token::Ckey)
-                }
-                ' ' => {
-                    self.char_index += 1;
-                    return self.get_token()
-                }
-                '\t' => {
-                    self.char_index += 1;
-                    return self.get_token()
-                }
-                '\n' => {
-                    self.char_index += 1;
-                    self.line_counter += 1;
-                    return self.get_token()
-                }
-                '$' => {
-                    return Some(Token::Eof)
-                }
-                _ => {
-                    println!("rest");
-                    None
+        let token: Token = match self.ch {
+            b'+' => {
+                if self.peek_char() == b'=' {
+                    self.read_char();
+                    Token::SumAsig
+                } else if self.peek_char() == b'+' {
+                    self.read_char();
+                    Token::Inc
+                } else {
+                    Token::Plus
                 }
             }
-        }
-    }
-
-    fn word_state(&mut self) -> Option<Token>{
-        let character: char = Status::get_caracter(self);
-        if character.is_alphanumeric() || character == '_'{ 
-            self.char_index += 1;
-            self.acum.push(character);
-            self.word_state()
-        }
-        else{
-            match Token::from_str(&first_letter_to_upper(&self.acum).as_str()){
-                Ok(token) =>{
-                    Some(token)
-                }
-                Err(_) => {
-                    if self.acum == "true"{
-                        Some(Token::ConstBool(true))
-                    }
-                    else if self.acum == "false"{
-                        Some(Token::ConstBool(true))
-                    }
-                    else{
-                        //let pos = self.ts.handle_symbol(self.acum.to_string()).unwrap();
-                        // TODO: mete el id en la TS 
-                        let pos = 1;
-                        Some(Token::Id( Pos {table: 0, position: pos}))
-                    }
+            b'-' => {
+                if self.peek_char() == b'=' {
+                    self.read_char();
+                    Token::MinAsig
+                } else if self.peek_char() == b'>' {
+                    self.read_char();
+                    Token::Arrow
+                } else if self.peek_char() == b'-' {
+                    self.read_char();
+                    Token::Dec
+                } else {
+                    Token::Minus
                 }
             }
-        }
+            b'*' => {
+                if self.peek_char() == b'=' {
+                    self.read_char();
+                    Token::MulAsig
+                } else {
+                    Token::Mult
+                }
+            }
+            b'/' => {
+                if self.peek_char() == b'=' {
+                    self.read_char();
+                    Token::DivAsig
+                } else {
+                    Token::Div
+                }
+            }
+            b'%' => Token::Mod,
+
+            b'<' => {
+                if self.peek_char() == b'=' {
+                    self.read_char();
+                    Token::Le
+                } else {
+                    Token::Lt
+                }
+            }
+            b'>' => {
+                if self.peek_char() == b'=' {
+                    self.read_char();
+                    Token::Ge
+                } else {
+                    Token::Gt
+                }
+            }
+            b'!' => {
+                if self.peek_char() == b'=' {
+                    self.read_char();
+                    Token::Neq
+                } else {
+                    Token::Invalid("!".to_string())
+                }
+            }
+            b'=' => {
+                if self.peek_char() == b'=' {
+                    self.read_char();
+                    Token::Eq
+                } else {
+                    Token::Assig
+                }
+            }
+
+            b'"' => Token::ConstStr(self.read_string()),
+            b',' => Token::Coma,
+            b';' => Token::Semicolon,
+            b':' => Token::Colon,
+            b'(' => Token::Opar,
+            b')' => Token::Cpar,
+            b'{' => Token::Okey,
+            b'}' => Token::Ckey,
+            b'[' => Token::Obrac,
+            b']' => Token::Cbrac,
+            0 => Token::Eof,
+            ch => {
+                if ch.is_letter() {
+                    let id = self.read_identifier();
+                    return match id.as_str() {
+                        "fun" => Token::Fun,
+                        "let" => Token::Let,
+                        "if" => Token::If,
+                        "elif" => Token::Elif,
+                        "else" => Token::Else,
+                        "return" => Token::Return,
+                        "true" => Token::ConstBool("true".to_string()),
+                        "false" => Token::ConstBool("false".to_string()),
+                        "int" => Token::Int,
+                        "str" => Token::Str,
+                        "bool" => Token::Bool,
+                        "arr" => Token::Arr,
+                        "and" => Token::And,
+                        "or" => Token::Or,
+                        "not" => Token::Not,
+                        _ => Token::Id(id),
+                    };
+                } else if ch.is_ascii_digit() {
+                    return Token::ConstInt(self.read_number());
+                } else {
+                    Token::Invalid((ch as char).to_string())
+                }
+            }
+        };
+
+        self.read_char();
+        token
     }
 
-    fn num_state(&mut self) -> Option<Token>{
-        let character: char = Status::get_caracter(self);
+    fn read_identifier(&mut self) -> String {
+        let position = self.position;
 
-        if character.is_numeric(){ 
-            self.char_index += 1;
-            self.acum.push(character);
-            self.num_state()
+        while self.ch.is_letter() {
+            self.read_char();
         }
-        else if character == '.'{
-            self.char_index += 1;
-            self.acum.push(character);
-            self.float_inter_state()
-        }
-        else{
-            Some(Token::ConstInt(self.acum.parse::<i32>().unwrap()))
-        }
+
+        String::from_utf8_lossy(&self.input[position..self.position]).to_string()
     }
 
-    fn float_inter_state(&mut self) -> Option<Token>{
-        let character: char = Status::get_caracter(self);
+    fn read_number(&mut self) -> String {
+        let position = self.position;
 
-        if character.is_numeric(){
-            self.char_index += 1;
-            self.acum.push(character);
-            self.float_state()
+        while self.ch.is_ascii_digit() {
+            self.read_char();
         }
-        else {
-            None
-        }
+
+        String::from_utf8_lossy(&self.input[position..self.position]).to_string()
     }
 
-    fn float_state(&mut self) -> Option<Token>{
-        let character: char = Status::get_caracter(self);
-
-        if character.is_numeric(){ 
-            self.char_index += 1;
-            self.acum.push(character);
-            self.float_state()
-        }
-        else{
-            Some(Token::ConstFloat(self.acum.parse::<f32>().unwrap()))
+    fn skip_whitespace(&mut self) {
+        while self.ch.is_ascii_whitespace() {
+            self.read_char()
         }
     }
 
-    fn sum_state(&mut self) -> Option<Token>{
-        let character: char = Status::get_caracter(self);
-
-        match character{
-            '+' => {
-                self.char_index += 1;
-                self.acum.push(character);
-                Some(Token::Inc)
-            }
-            '=' =>{
-                self.char_index += 1;
-                self.acum.push(character);
-                Some(Token::SumAsig)
-            }
-            _ => {
-                Some(Token::Plus)
-            }
+    fn peek_char(&mut self) -> u8 {
+        if self.read_position >= self.input.len() {
+            0
+        } else {
+            self.input[self.read_position]
         }
     }
 
-    fn minus_state(&mut self) -> Option<Token>{
-        let character: char = Status::get_caracter(self);
+    fn read_string(&mut self) -> String {
+        self.read_char();
+        let position = self.position;
 
-        match character {
-            '-' => {
-                self.char_index += 1;
-                self.acum.push(character);
-                Some(Token::Dec)
-            }
-            '=' => {
-                self.char_index += 1;
-                self.acum.push(character);
-                Some(Token::MinAsig)
-            }
-            '>' => {
-                self.char_index += 1;
-                self.acum.push(character);
-                Some(Token::Arrow)
-            }
-            _ => {
-                Some(Token::Minus)
-            }
-        }
-    }
-
-    fn mul_state(&mut self) -> Option<Token> {
-        let character: char = Status::get_caracter(self);
-
-        match character{
-            '=' =>{
-                self.char_index += 1;
-                self.acum.push(character);
-                Some(Token::MulAsig)
-            }
-            _ => {
-                Some(Token::Mult)
-            }
+        while self.ch != b'"' {
+            self.read_char();
         }
 
-    }
-
-    fn div_state(&mut self) -> Option<Token> {
-        let character: char = Status::get_caracter(self);
-
-        match character{
-            '=' =>{
-                self.char_index += 1;
-                self.acum.push(character);
-                Some(Token::DivAsig)
-            }
-            _ => {
-                Some(Token::Div)
-            }
-        }
-    }
-
-    fn mod_state(&mut self) -> Option<Token> {
-        Some(Token::Mod)
-    }
-
-    fn eq_state(&mut self) -> Option<Token> {
-        let character: char = Status::get_caracter(self);
-
-        match character{
-            '=' =>{
-                self.char_index += 1;
-                self.acum.push(character);
-                Some(Token::Eq)
-            }
-            _ => {
-                Some(Token::Assig)
-            }
-        }
-    }
-
-    fn not_state(&mut self) -> Option<Token> {
-        let character: char = Status::get_caracter(self);
-
-        match character{
-            '=' =>{
-                self.char_index += 1;
-                self.acum.push(character);
-                Some(Token::Neq)
-            }
-            _ => {
-                None
-            }
-        }
-    }
-
-    fn less_state(&mut self) -> Option<Token> {
-        let character: char = Status::get_caracter(self);
-
-        match character{
-            '=' =>{
-                self.char_index += 1;
-                self.acum.push(character);
-                Some(Token::Le)
-            }
-            _ => {
-                Some(Token::Lt)
-            }
-        }
-    }
-
-    fn gr_state(&mut self) -> Option<Token> {
-        let character: char = Status::get_caracter(self);
-
-        match character{
-            '=' =>{
-                self.char_index += 1;
-                self.acum.push(character);
-                Some(Token::Ge)
-            }
-            _ => {
-                Some(Token::Gt)
-            }
-        }
+        String::from_utf8_lossy(&self.input[position..self.position]).to_string()
     }
 }
 
-fn first_letter_to_upper(str: &String) -> String{
-    let mut v: Vec<char> = str.chars().collect();
-    v[0] = v[0].to_uppercase().nth(0).unwrap();
-    v.into_iter().collect()
+#[cfg(test)]
+mod test {
+    use crate::token;
+
+    use super::*;
+
+    #[test]
+    fn test_next_token() {
+        let input = "=+()[]{},;";
+
+        let expected = vec![
+            Token::Assig,
+            Token::Plus,
+            Token::Opar,
+            Token::Cpar,
+            Token::Obrac,
+            Token::Cbrac,
+            Token::Okey,
+            Token::Ckey,
+            Token::Coma,
+            Token::Semicolon,
+            Token::Eof,
+        ];
+
+        let mut lexer = Lexer::new(input.to_string());
+
+        for (i, token) in expected.iter().enumerate() {
+            let new_token = lexer.next_token();
+            println!("Test {i} expected: {token}, got: {new_token}");
+            assert_eq!(*token, new_token);
+        }
+    }
+
+    #[test]
+    fn test_source_code_first_subset() {
+        let input = r#"let five: int = 5;
+        let ten: int = 10;
+        let hello: str = "hello world";
+        let array: arr = [1, 2];
+        let my_bool: bool = true;
+        
+        let add = fun(x,y) -> int {
+            x + y;
+        }
+
+        let result = add(five, ten);"#;
+
+        let expected = vec![
+            Token::Let,
+            Token::Id("five".to_string()),
+            Token::Colon,
+            Token::Int,
+            Token::Assig,
+            Token::ConstInt("5".to_string()),
+            Token::Semicolon,
+            Token::Let,
+            Token::Id("ten".to_string()),
+            Token::Colon,
+            Token::Int,
+            Token::Assig,
+            Token::ConstInt("10".to_string()),
+            Token::Semicolon,
+            Token::Let,
+            Token::Id("hello".to_string()),
+            Token::Colon,
+            Token::Str,
+            Token::Assig,
+            Token::ConstStr("hello world".to_string()),
+            Token::Semicolon,
+            Token::Let,
+            Token::Id("array".to_string()),
+            Token::Colon,
+            Token::Arr,
+            Token::Assig,
+            Token::Obrac,
+            Token::ConstInt("1".to_string()),
+            Token::Coma,
+            Token::ConstInt("2".to_string()),
+            Token::Cbrac,
+            Token::Semicolon,
+            Token::Let,
+            Token::Id("my_bool".to_string()),
+            Token::Colon,
+            Token::Bool,
+            Token::Assig,
+            Token::ConstBool("true".to_string()),
+            Token::Semicolon,
+            Token::Let,
+            Token::Id("add".to_string()),
+            Token::Assig,
+            Token::Fun,
+            Token::Opar,
+            Token::Id("x".to_string()),
+            Token::Coma,
+            Token::Id("y".to_string()),
+            Token::Cpar,
+            Token::Arrow,
+            Token::Int,
+            Token::Okey,
+            Token::Id("x".to_string()),
+            Token::Plus,
+            Token::Id("y".to_string()),
+            Token::Semicolon,
+            Token::Ckey,
+            Token::Let,
+            Token::Id("result".to_string()),
+            Token::Assig,
+            Token::Id("add".to_string()),
+            Token::Opar,
+            Token::Id("five".to_string()),
+            Token::Coma,
+            Token::Id("ten".to_string()),
+            Token::Cpar,
+            Token::Semicolon,
+            Token::Eof,
+        ];
+
+        let mut lexer = Lexer::new(input.to_string());
+
+        for (i, token) in expected.iter().enumerate() {
+            let new_token = lexer.next_token();
+            println!("Test {i} expected: {token}, got: {new_token}");
+            assert_eq!(*token, new_token);
+        }
+    }
+
+    #[test]
+    fn test_one_char_operands() {
+        let input = "-/*5:;
+5 < 10 > 5;
+";
+
+        let expected = vec![
+            Token::Minus,
+            Token::Div,
+            Token::Mult,
+            Token::ConstInt(5.to_string()),
+            Token::Colon,
+            Token::Semicolon,
+            Token::ConstInt(5.to_string()),
+            Token::Lt,
+            Token::ConstInt(10.to_string()),
+            Token::Gt,
+            Token::ConstInt(5.to_string()),
+            Token::Semicolon,
+            Token::Eof,
+        ];
+
+        let mut lexer = Lexer::new(input.to_string());
+
+        for (i, token) in expected.iter().enumerate() {
+            let new_token = lexer.next_token();
+            println!("Test {i} expected: {token}, got: {new_token}");
+            assert_eq!(*token, new_token);
+        }
+    }
+
+    #[test]
+    fn test_if_else_bools() {
+        let input = "
+if (5 < 10) {
+    return true;
+} elif {
+    return true;
+} else {
+    return false;
+}
+
+and or not
+";
+
+        let expected = vec![
+            Token::If,
+            Token::Opar,
+            Token::ConstInt(5.to_string()),
+            Token::Lt,
+            Token::ConstInt(10.to_string()),
+            Token::Cpar,
+            Token::Okey,
+            Token::Return,
+            Token::ConstBool("true".to_string()),
+            Token::Semicolon,
+            Token::Ckey,
+            Token::Elif,
+            Token::Okey,
+            Token::Return,
+            Token::ConstBool("true".to_string()),
+            Token::Semicolon,
+            Token::Ckey,
+            Token::Else,
+            Token::Okey,
+            Token::Return,
+            Token::ConstBool("false".to_string()),
+            Token::Semicolon,
+            Token::Ckey,
+            Token::And,
+            Token::Or,
+            Token::Not,
+            Token::Eof,
+        ];
+
+        let mut lexer = Lexer::new(input.to_string());
+
+        for (i, token) in expected.iter().enumerate() {
+            let new_token = lexer.next_token();
+            println!("Test {i} expected: {token}, got: {new_token}");
+            assert_eq!(*token, new_token);
+        }
+    }
+
+    #[test]
+    fn test_two_char_operands() {
+        let input = "
+10 == 10;
+10 != 9;
+<= >=
+-- ++
+";
+
+        let expected = vec![
+            Token::ConstInt(10.to_string()),
+            Token::Eq,
+            Token::ConstInt(10.to_string()),
+            Token::Semicolon,
+            Token::ConstInt(10.to_string()),
+            Token::Neq,
+            Token::ConstInt(9.to_string()),
+            Token::Semicolon,
+            Token::Le,
+            Token::Ge,
+            Token::Dec,
+            Token::Inc,
+            Token::Eof,
+        ];
+
+        let mut lexer = Lexer::new(input.to_string());
+
+        for (i, token) in expected.iter().enumerate() {
+            let new_token = lexer.next_token();
+            println!("Test {i} expected: {token}, got: {new_token}");
+            assert_eq!(*token, new_token);
+        }
+    }
 }

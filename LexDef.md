@@ -64,8 +64,6 @@ In the language, there will be the following tokens:
 <For,->
 <Loop,->
 <While,->
-<Begin,->
-<Raw,->
 
 ## Symbols
 <Coma,->
@@ -84,3 +82,7 @@ In the language, there will be the following tokens:
 <ConstStr,value>
 <ConstBool,value>
 <ConstArr,value>
+
+## Others
+<Eof, ->
+<Invalid, ->
