@@ -1,220 +1,209 @@
-use std::sync::mpsc::SyncSender;
+use std::marker::PhantomData;
+use std::ops::Mul;
 
-use pomelo::pomelo;
-use crate::{lex::Status, TS::TsOption};
+use crate::ast::{
+    Expression, ExpressionNode, Identifier, LetStatement, Program, ReturnStatement, Statement,
+    StatementNode,
+};
+use crate::lexer::Lexer;
+use crate::token::Token;
 
-pub use self::parser::{Parser, Token};
+struct Parser {
+    lex: Lexer,
 
-#[derive(Default, PartialEq, Debug, Clone)]
-pub struct Pos {
-    pub(crate) table: i32,
-    pub(crate) position: i32,
+    current_token: Token,
+    peek_token: Token,
+
+    errors: Vec<String>,
 }
 
-// I won't implement the beguin and the raw statements yet
-
-pomelo!{
-    %include {use crate::TS::TsOption;
-            use crate::parser::Pos;
-            use strum_macros::EnumString;}
-    %token #[derive(Debug, EnumString, PartialEq, Clone)]
-            pub enum Token{};
-    %parser pub struct Parser{};
-    %extra_argument std::sync::mpsc::SyncSender<TsOption>;
-
-    %start_symbol program;
-
-
-
-    %type Int;
-    %type Str;
-    %type Bool;
-    %type Float;
-    %type Arr;
-
-    %type Plus; 
-    %type Minus;
-    %type Mult;
-    %type Div;
-    %type Mod;
-
-    %type Eq;
-    %type Neq;
-    %type Lt;
-    %type Gt;
-    %type Le;
-    %type Ge;
-
-    %type And;
-    %type Or;
-    %type Not;
-
-    %type Inc;
-    %type Dec;
-
-    %type Assig;
-    %type SumAsig;
-    %type MinAsig;
-    %type MulAsig;
-    %type DivAsig;
-
-    %type Id Pos;
-     
-    %type Fun;
-    %type Let;
-    %type Arrow; 
-    %type Return;
-    %type Raw;
-    %type Begin;
-    %type If;
-    %type Elif;
-    %type Else;
-    %type For;
-    %type Loop;
-    %type While;
-
-    %type Input;
-    %type Print;
-     
-    %type Coma;
-    %type Semicolon;
-    %type Colon;
-     
-    %type Opar;
-    %type Cpar;
-    %type Obraq;
-    %type Cbrac;
-    %type Okey;
-    %type Ckey;
-
-    %type ConstInt i32;
-    %type ConstFloat f32;
-    %type ConstStr String;
-    %type ConstBool bool;
-    
-    %type Eof;
- 
-    program ::= continue_state;
-
-    continue_state ::= simple_statement continue_state? Eof;
-    continue_state ::= complex_statement continue_state? Eof;
-    continue_state ::= function continue_state? Eof;
-    continue_state ::= declaration continue_state? Eof;
-    continue_state ::= begin_state continue_state? Eof;
-
-    begin_state ::= Begin Okey inside? Ckey ;
-
-    simple_statement ::= initialization Semicolon;
-    simple_statement ::= Id Opar pass_param Cpar Semicolon;
-    simple_statement ::= Print expresion Semicolon;
-    simple_statement ::= Input Id Semicolon;
-    simple_statement ::= Return expresion? Semicolon;
-    simple_statement ::= asignation Semicolon;
-
-    complex_statement ::= while_state;
-    complex_statement ::= loop_state;
-    complex_statement ::= for_state;
-    complex_statement ::= if_else_state;
-
-    declaration ::= Let Id Colon type_state Semicolon;
-    function ::= Fun Id Opar decl_param? Cpar return_type? Okey inside? Ckey;
-
-    //function
-    decl_param ::= Id Colon type_state another_param?;
-    another_param ::= Coma decl_param;
-    return_type ::= Arrow type_state;
-
-    //complex
-    while_state ::= While Opar expresion Cpar Okey inside? Ckey;
-
-    if_else_state ::= If Opar expresion Cpar Okey inside? Ckey elif_state? else_state?;
-    elif_state ::= Elif Opar expresion Cpar Okey inside? Ckey elif_state?;
-    else_state ::= Else Okey inside? Ckey;
-
-    for_state ::= For Opar declaration initialization Semicolon relation_expression Semicolon inc_dec_state Cpar Okey inside? Ckey;
-    inc_dec_state ::= Id inc_dec_tok;
-
-    inc_dec_tok ::= Inc;
-    inc_dec_tok ::= Dec;
-
-    loop_state ::= Loop Okey inside? Ckey;
-
-    inside ::= inside? simple_statement;
-    inside ::= inside? complex_statement;
-    inside ::= inside? declaration;
-
-    // simple
-    initialization ::= Id Assig expresion;
-    asignation ::= Id asig_tok expresion;
-    
-    asig_tok ::= SumAsig;
-    asig_tok ::= MinAsig;
-    asig_tok ::= MulAsig;
-    asig_tok ::= DivAsig;
-
-    pass_param ::= Id pass_another_param?;
-    pass_another_param ::= Coma pass_param;
-
-    type_state ::= Int;
-    type_state ::= Str;
-    type_state ::= Bool;
-    type_state ::= Float;
-    type_state ::= Arr Obraq ConstInt Cbrac Colon type_state;
-
-    expresion ::= expresion logic_operator relation_expression;
-    expresion ::= relation_expression;
-    relation_expression ::= relation_expression relation_operator order_expresion; 
-    relation_expression ::= order_expresion; 
-    order_expresion ::= order_expresion order_operator sum_expresion; 
-    order_expresion ::= sum_expresion; 
-    sum_expresion ::= sum_expresion sum_operator mul_expresion; 
-    sum_expresion ::= mul_expresion; 
-    mul_expresion ::= mul_expresion mul_operator unary_expresion; 
-    mul_expresion ::= unary_expresion; 
-    unary_expresion ::= unary_expresion unary_operator leaf; 
-    unary_expresion ::= leaf; 
-
-    logic_operator ::= And; 
-    logic_operator ::= Or; 
-    relation_operator ::= Eq;
-    relation_operator ::= Neq;
-    order_operator ::= Ge;
-    order_operator ::= Lt;
-    order_operator ::= Gt;
-    order_operator ::= Le;
-    sum_operator ::= Plus;
-    sum_operator ::= Minus;
-    mul_operator ::= Mult;
-    mul_operator ::= Div;
-    mul_operator ::= Mod;
-    unary_operator ::= Inc;
-    unary_operator ::= Dec;
-    unary_operator ::= Not;
-
-    leaf ::= Id;
-    leaf ::= Opar expresion Cpar;
-    leaf ::= Id Opar pass_param Cpar ;
-    leaf ::= ConstInt ;
-    leaf ::= ConstFloat;
-    leaf ::= ConstBool ;
-    leaf ::= ConstStr ;
-    leaf ::= Id Obraq expresion Cbrac;
-}
-
-pub fn parse (mut lex: Status, send_to_ts: SyncSender<TsOption>) -> Result<(), ()> {
-    let mut p = Parser::new(send_to_ts);
-    let status = Ok(());
-    loop {
-        let token: Token = match lex.get_token() {
-            Some(t) => t.clone(),
-            None => break
+impl Parser {
+    fn new(lex: Lexer) -> Parser {
+        let mut p = Parser {
+            lex,
+            current_token: Token::Invalid(b'0'.to_string()),
+            peek_token: Token::Invalid(b'0'.to_string()),
+            errors: vec![],
         };
-        let ctok: Token = token.clone();
-        let res = p.parse(token);
-        match res {
-            Ok(()) => {println!("parsed {:?} ", ctok); if ctok == Token::Eof {return status}},
-            Err(()) => {println!("failed at {:?} ", ctok); return Err(())},
+
+        p.next_token();
+        p.next_token();
+
+        p
+    }
+
+    fn errors(&self) -> Vec<String> {
+        self.errors.clone()
+    }
+
+    fn next_token(&mut self) {
+        self.current_token = self.peek_token.clone();
+        self.peek_token = self.lex.next_token();
+    }
+
+    fn parse_program(&mut self) -> Program {
+        let mut program = Program { statements: vec![] };
+
+        while self.current_token != Token::Eof {
+            match self.parse_statement() {
+                Ok(statement) => program.statements.push(statement),
+                Err(_) => (),
+            };
+            self.next_token();
+        }
+
+        program
+    }
+
+    fn parse_statement(&mut self) -> Result<StatementNode, MyParseError> {
+        match self.current_token {
+            Token::Let => Ok(StatementNode::LetStatement(self.parse_let_statement()?)),
+            Token::Return => Ok(StatementNode::ReturnStatement(
+                self.parse_return_statement()?,
+            )),
+            _ => Err(MyParseError),
         }
     }
-    status
+
+    fn parse_let_statement(&mut self) -> Result<LetStatement, MyParseError> {
+        let tok = &self.current_token.clone();
+
+        if !self.expect_peek(Token::Id("".to_string())) {
+            return Err(MyParseError);
+        }
+
+        let name = Identifier {
+            token: self.current_token.clone(),
+        };
+
+        if !self.expect_peek(Token::Assig) {
+            return Err(MyParseError);
+        }
+
+        while !self.cur_token_is(Token::Semicolon) {
+            self.next_token();
+        }
+
+        Ok(LetStatement {
+            token: tok.clone(),
+            name,
+            value: ExpressionNode::Identifier(Identifier {
+                token: Token::Invalid("".to_string()),
+            }),
+        })
+    }
+
+    fn parse_return_statement(&mut self) -> Result<ReturnStatement, MyParseError> {
+        let tok = &self.current_token.clone();
+
+        while !self.cur_token_is(Token::Semicolon) {
+            self.next_token();
+        }
+
+        Ok(ReturnStatement {
+            token: tok.clone(),
+            return_value: ExpressionNode::Identifier(Identifier {
+                token: Token::Invalid("".to_string()),
+            }),
+        })
+    }
+
+    fn expect_peek(&mut self, tok: Token) -> bool {
+        if self.peek_token_is(tok.clone()) {
+            self.next_token();
+            return true;
+        }
+
+        self.peek_error(tok);
+
+        return false;
+    }
+
+    fn peek_error(&mut self, tok: Token) {
+        let msg = format!("expected {:?}, actual {:?}", &tok, self.peek_token);
+        self.errors.push(msg);
+    }
+
+    fn cur_token_is(&self, tok: Token) -> bool {
+        match (self.current_token.clone(), tok) {
+            (Token::Id(_), Token::Id(_)) => true,
+            (t1, t2) => t1 == t2,
+        }
+    }
+    fn peek_token_is(&self, tok: Token) -> bool {
+        match (self.peek_token.clone(), tok) {
+            (Token::Id(_), Token::Id(_)) => true,
+            (t1, t2) => t1 == t2,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct MyParseError;
+
+#[cfg(test)]
+mod test {
+    use core::panic;
+
+    use crate::ast::{Identifier, LetStatement, Node};
+
+    use super::*;
+
+    #[test]
+    fn test_parse_let_statement() {
+        let input = "let x = 5;
+                    let y = 10;
+                    let foo = 2323124;";
+
+        let mut par = Parser::new(Lexer::new(input.to_string()));
+        let pro = par.parse_program();
+        check_parse_errors(par);
+        assert_eq!(3, pro.statements.len());
+
+        let tests = vec!["x", "y", "foo"];
+
+        for (i, test) in tests.iter().enumerate() {
+            test_let_statement(test, &&pro.statements[i]);
+        }
+    }
+
+    fn test_let_statement(test: &str, statement: &&StatementNode) {
+        match statement {
+            StatementNode::LetStatement(st) => assert_eq!(test, st.name.token_literal()),
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn test_parse_return_statement() {
+        let input = "return 3;
+                    return 5;
+                    return 2323124;";
+
+        let mut par = Parser::new(Lexer::new(input.to_string()));
+        let pro = par.parse_program();
+        check_parse_errors(par);
+        assert_eq!(3, pro.statements.len());
+
+        for statement in pro.statements {
+            match statement {
+                StatementNode::ReturnStatement(_) => (),
+                _ => panic!(),
+            }
+        }
+    }
+
+    fn check_parse_errors(par: Parser) {
+        let errors = par.errors();
+        if errors.len() == 0 {
+            return;
+        }
+
+        dbg!(errors.len());
+        dbg!("---------------------");
+        for error in errors {
+            dbg!(error);
+        }
+        panic!()
+    }
 }

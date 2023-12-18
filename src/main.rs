@@ -1,12 +1,10 @@
-// mod parser;
-#[allow(non_snake_case)]
 mod TS;
+mod ast;
 mod lexer;
+mod parser;
 mod repl;
 mod token;
 
-#[cfg(test)]
-// mod tests;
 use std::fs::{self, File};
 use std::sync::mpsc::sync_channel;
 use std::{io, thread};
