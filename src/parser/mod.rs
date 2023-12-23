@@ -1,5 +1,5 @@
 use crate::ast::expressions::{
-    Boolean, IfExpression, InfixExpression, IntegerLiteral, PrefixExpression,
+    Boolean, FunctionLiteral, IfExpression, InfixExpression, IntegerLiteral, PrefixExpression,
 };
 use crate::ast::statements::{BlockStatement, ExpressionStatement};
 use crate::ast::{
@@ -153,6 +153,7 @@ impl Parser {
             Token::ConstBool(b) => Ok(self.parse_boolean(b)?),
             Token::Opar => Ok(self.parse_grouped_expression()?),
             Token::If => Ok(self.parse_if_expression()?),
+            Token::Fun => Ok(self.parse_function_literal()?),
             _ => {
                 self.no_prefix_fn_error(self.current_token.clone());
                 Err(MyParseError)
@@ -241,6 +242,52 @@ impl Parser {
                 alternative: None,
             }))
         }
+    }
+
+    fn parse_function_literal(&mut self) -> Result<ExpressionNode, MyParseError> {
+        let func_tok = self.current_token.clone();
+
+        self.expect_peek(Token::Opar);
+        let parameters = self.parse_function_parameters()?;
+        self.expect_peek(Token::Okey);
+
+        let block = self.parse_block_statement()?;
+
+        Ok(ExpressionNode::FunctionLiteral(FunctionLiteral {
+            token: func_tok,
+            parameters,
+            body: block,
+        }))
+    }
+
+    fn parse_function_parameters(&mut self) -> Result<Vec<Identifier>, MyParseError> {
+        let mut identifiers: Vec<Identifier> = vec![];
+
+        if self.peek_token_is(Token::Cpar) {
+            self.next_token();
+            return Ok(identifiers);
+        }
+
+        self.next_token();
+
+        let ident = Identifier {
+            token: self.current_token.clone(),
+        };
+
+        identifiers.push(ident);
+
+        while self.peek_token_is(Token::Coma) {
+            self.next_token();
+            self.next_token();
+            let ident = Identifier {
+                token: self.current_token.clone(),
+            };
+            identifiers.push(ident);
+        }
+
+        self.expect_peek(Token::Cpar);
+
+        Ok(identifiers)
     }
 
     fn parse_block_statement(&mut self) -> Result<BlockStatement, MyParseError> {

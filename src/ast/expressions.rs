@@ -12,6 +12,7 @@ pub enum ExpressionNode {
     InfixExpression(InfixExpression),
     Boolean(Boolean),
     IfExpression(IfExpression),
+    FunctionLiteral(FunctionLiteral),
 }
 
 impl Node for ExpressionNode {
@@ -23,6 +24,7 @@ impl Node for ExpressionNode {
             ExpressionNode::InfixExpression(expression) => expression.token_literal(),
             ExpressionNode::Boolean(expression) => expression.token_literal(),
             ExpressionNode::IfExpression(expression) => expression.token_literal(),
+            ExpressionNode::FunctionLiteral(expression) => expression.token_literal(),
         }
     }
 
@@ -34,6 +36,7 @@ impl Node for ExpressionNode {
             ExpressionNode::InfixExpression(expression) => expression.string(),
             ExpressionNode::Boolean(expression) => expression.string(),
             ExpressionNode::IfExpression(expression) => expression.string(),
+            ExpressionNode::FunctionLiteral(expression) => expression.string(),
         }
     }
 }
@@ -47,6 +50,7 @@ impl Expression for ExpressionNode {
             ExpressionNode::InfixExpression(expression) => expression.expression_node(),
             ExpressionNode::Boolean(expression) => expression.expression_node(),
             ExpressionNode::IfExpression(expression) => expression.expression_node(),
+            ExpressionNode::FunctionLiteral(expression) => expression.expression_node(),
         }
     }
 }
@@ -212,6 +216,41 @@ impl Node for Boolean {
 }
 
 impl Expression for Boolean {
+    fn expression_node(&self) {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionLiteral {
+    pub token: Token,
+    pub parameters: Vec<Identifier>,
+    pub body: BlockStatement,
+}
+
+impl Node for FunctionLiteral {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+
+    fn string(&self) -> String {
+        let parameters = self
+            .parameters
+            .iter()
+            .fold(String::new(), |acc, statement| {
+                format!("{acc},{}", statement.string())
+            });
+
+        format!(
+            "{}({}){}",
+            self.token.to_string(),
+            parameters,
+            self.body.string()
+        )
+    }
+}
+
+impl Expression for FunctionLiteral {
     fn expression_node(&self) {
         todo!()
     }

@@ -275,6 +275,66 @@ fn test_if_else_expression() {
     test_identifier(&alternative.expression, "y")
 }
 
+#[test]
+fn test_function_literal_parsing() {
+    let input = "fun (x, y) {x + y}";
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let program = parser.parse_program();
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+
+    let exp = get_expression_statement(&program.statements[0]);
+
+    let function = match &exp.expression {
+        ExpressionNode::FunctionLiteral(if_expression) => if_expression,
+        actual => panic!("Expected a function literal, got {:?}", actual),
+    };
+
+    assert_eq!(2, function.parameters.len());
+
+    assert_eq!("x", function.parameters[0].token_literal());
+    assert_eq!("y", function.parameters[1].token_literal());
+
+    assert_eq!(1, function.body.statements.len());
+
+    let exp = get_expression_statement(&function.body.statements[0]);
+
+    test_infix_expression(&exp.expression, "x", "+", "y");
+}
+
+#[test]
+fn test_function_parameter_parsing() {
+    let tests = vec![
+        ("fun () {}", vec![]),
+        ("fun (x) {}", vec!["x"]),
+        ("fun (x,y) {}", vec!["x", "y"]),
+    ];
+
+    for (input, expected) in tests {
+        let lex = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lex);
+        let program = parser.parse_program();
+
+        check_parse_errors(parser);
+
+        let exp = get_expression_statement(&program.statements[0]);
+
+        let function = match &exp.expression {
+            ExpressionNode::FunctionLiteral(if_expression) => if_expression,
+            actual => panic!("Expected a function literal, got {:?}", actual),
+        };
+
+        assert_eq!(expected.len(), function.parameters.len());
+
+        for (i, ident) in expected.iter().enumerate() {
+            assert_eq!(ident.to_string(), function.parameters[i].token_literal());
+        }
+    }
+}
+
 //-------------------[Test helpers]-------------------//
 
 fn get_expression_statement(statement: &StatementNode) -> &ExpressionStatement {
