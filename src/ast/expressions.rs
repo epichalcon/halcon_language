@@ -1,6 +1,4 @@
-use std::fmt::format;
-
-use crate::ast::statements::{self, BlockStatement};
+use crate::ast::statements::BlockStatement;
 use crate::ast::{Expression, Node};
 use crate::token::Token;
 
@@ -251,7 +249,7 @@ impl Node for FunctionLiteral {
                 });
 
         format!(
-            "{}({}){}",
+            "{}({}) {{{}}}",
             self.token.to_string(),
             parameters,
             self.body.string()

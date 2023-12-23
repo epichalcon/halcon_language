@@ -16,7 +16,7 @@ mod test;
 
 mod precedence;
 
-struct Parser {
+pub struct Parser {
     lex: Lexer,
 
     current_token: Token,
@@ -26,7 +26,7 @@ struct Parser {
 }
 
 impl Parser {
-    fn new(lex: Lexer) -> Parser {
+    pub fn new(lex: Lexer) -> Parser {
         let mut p = Parser {
             lex,
             current_token: Token::Invalid(b'0'.to_string()),
@@ -40,7 +40,7 @@ impl Parser {
         p
     }
 
-    fn errors(&self) -> Vec<String> {
+    pub fn errors(&self) -> Vec<String> {
         self.errors.clone()
     }
 
@@ -49,7 +49,7 @@ impl Parser {
         self.peek_token = self.lex.next_token();
     }
 
-    fn parse_program(&mut self) -> Program {
+    pub fn parse_program(&mut self) -> Program {
         let mut program = Program { statements: vec![] };
 
         while self.current_token != Token::Eof {

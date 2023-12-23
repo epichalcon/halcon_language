@@ -1,7 +1,8 @@
 use std::io::{self, Write};
 
-use crate::lexer::{self, Lexer};
-use crate::token::Token;
+use crate::ast::Node;
+use crate::lexer::Lexer;
+use crate::parser::Parser;
 
 const PROMPT: &str = ">>";
 
@@ -15,13 +16,16 @@ pub fn start(input: io::Stdin, mut output: io::Stdout) {
             break;
         }
 
-        let mut lex = Lexer::new(scanned);
-        loop {
-            let tok = lex.next_token();
-            if tok == Token::Eof {
-                break;
-            }
-            println!("{tok}");
+        let lex = Lexer::new(scanned);
+        let mut pars = Parser::new(lex);
+
+        let program = pars.parse_program();
+
+        if pars.errors().len() != 0 {
+            println!("Errors have been found: \n{:?}", pars.errors());
+            continue;
         }
+
+        println!("{}", program.string());
     }
 }
