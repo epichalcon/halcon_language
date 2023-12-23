@@ -1,60 +1,17 @@
-use std::cmp::Ordering;
-
-use crate::ast::expressions::{InfixExpression, IntegerLiteral, PrefixExpression};
+use crate::ast::expressions::{Boolean, InfixExpression, IntegerLiteral, PrefixExpression};
 use crate::ast::statements::ExpressionStatement;
 use crate::ast::{
     expressions::ExpressionNode, expressions::Identifier, statements::LetStatement,
     statements::ReturnStatement, statements::StatementNode, Program,
 };
 use crate::lexer::Lexer;
+use crate::parser::precedence::Precedence;
 use crate::token::Token;
 
 #[cfg(test)]
 mod test;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd)]
-enum Precedence {
-    Lowest,
-    Equals,
-    LessGreater,
-    Sum,
-    Product,
-    Prefix,
-    Call,
-}
-impl Ord for Precedence {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match (self, other) {
-            (Precedence::Lowest, Precedence::Lowest)
-            | (Precedence::Equals, Precedence::Equals)
-            | (Precedence::LessGreater, Precedence::LessGreater)
-            | (Precedence::Sum, Precedence::Sum)
-            | (Precedence::Product, Precedence::Product)
-            | (Precedence::Prefix, Precedence::Prefix)
-            | (Precedence::Call, Precedence::Call) => std::cmp::Ordering::Equal,
-
-            (Precedence::Call, _) => std::cmp::Ordering::Greater,
-            (_, Precedence::Call) => std::cmp::Ordering::Less,
-
-            (Precedence::Prefix, _) => std::cmp::Ordering::Greater,
-            (_, Precedence::Prefix) => std::cmp::Ordering::Less,
-
-            (Precedence::Product, _) => std::cmp::Ordering::Greater,
-            (_, Precedence::Product) => std::cmp::Ordering::Less,
-
-            (Precedence::Sum, _) => std::cmp::Ordering::Greater,
-            (_, Precedence::Sum) => std::cmp::Ordering::Less,
-
-            (Precedence::LessGreater, _) => std::cmp::Ordering::Greater,
-            (_, Precedence::LessGreater) => std::cmp::Ordering::Less,
-
-            (Precedence::Equals, _) => std::cmp::Ordering::Greater,
-            (_, Precedence::Equals) => std::cmp::Ordering::Less,
-        }
-    }
-}
-
-impl Precedence {}
+mod precedence;
 
 struct Parser {
     lex: Lexer,
@@ -188,9 +145,11 @@ impl Parser {
         tok: Token,
     ) -> Result<ExpressionNode, MyParseError> {
         match tok {
-            Token::Id(id) => Ok(self.parse_identifier(id.to_string())),
-            Token::ConstInt(num) => Ok(self.parse_integer_literal(num.to_string())),
-            Token::Not | Token::Minus => Ok(self.parse_prefix_expression()),
+            Token::Id(id) => Ok(self.parse_identifier(id.to_string())?),
+            Token::ConstInt(num) => Ok(self.parse_integer_literal(num.to_string())?),
+            Token::Not | Token::Minus => Ok(self.parse_prefix_expression()?),
+            Token::ConstBool(b) => Ok(self.parse_boolean(b)?),
+            Token::Opar => Ok(self.parse_grouped_expression()?),
             _ => {
                 self.no_prefix_fn_error(self.current_token.clone());
                 Err(MyParseError)
@@ -211,7 +170,7 @@ impl Parser {
             | Token::Plus
             | Token::Minus
             | Token::Div
-            | Token::Mult => Ok(self.parse_infix_expression(left)),
+            | Token::Mult => Ok(self.parse_infix_expression(left)?),
             _ => {
                 self.no_infix_fn_error(self.current_token.clone());
                 Err(MyParseError)
@@ -219,42 +178,61 @@ impl Parser {
         }
     }
 
-    fn parse_identifier(&self, id: String) -> ExpressionNode {
-        ExpressionNode::Identifier(Identifier {
+    fn parse_identifier(&self, id: String) -> Result<ExpressionNode, MyParseError> {
+        Ok(ExpressionNode::Identifier(Identifier {
             token: Token::Id(id.to_string()),
-        })
+        }))
     }
 
-    fn parse_integer_literal(&self, num: String) -> ExpressionNode {
-        ExpressionNode::IntegerLiteral(IntegerLiteral {
+    fn parse_integer_literal(&self, num: String) -> Result<ExpressionNode, MyParseError> {
+        Ok(ExpressionNode::IntegerLiteral(IntegerLiteral {
             token: Token::ConstInt(num.to_string()),
-        })
+        }))
     }
 
-    fn parse_prefix_expression(&mut self) -> ExpressionNode {
+    fn parse_boolean(&self, b: String) -> Result<ExpressionNode, MyParseError> {
+        Ok(ExpressionNode::Boolean(Boolean {
+            token: Token::ConstBool(b.to_string()),
+        }))
+    }
+
+    fn parse_grouped_expression(&mut self) -> Result<ExpressionNode, MyParseError> {
+        self.next_token();
+
+        let exp = self.parse_expression(Precedence::Lowest)?;
+
+        self.expect_peek(Token::Cpar);
+
+        Ok(exp)
+    }
+
+    fn parse_prefix_expression(&mut self) -> Result<ExpressionNode, MyParseError> {
         let tok = self.current_token.clone();
 
         self.next_token();
 
-        ExpressionNode::PrefixExpression(PrefixExpression {
+        Ok(ExpressionNode::PrefixExpression(PrefixExpression {
             token: tok.clone(),
             operator: tok.to_string(),
-            right: Box::new(self.parse_expression(Precedence::Prefix).unwrap()),
-        })
+            right: Box::new(self.parse_expression(Precedence::Prefix)?),
+        }))
     }
 
-    fn parse_infix_expression(&mut self, left: ExpressionNode) -> ExpressionNode {
+    fn parse_infix_expression(
+        &mut self,
+        left: ExpressionNode,
+    ) -> Result<ExpressionNode, MyParseError> {
         let tok = self.current_token.clone();
 
         let precedence = self.current_precedence();
         self.next_token();
 
-        ExpressionNode::InfixExpression(InfixExpression {
+        Ok(ExpressionNode::InfixExpression(InfixExpression {
             token: tok.clone(),
             left: Box::new(left),
             operator: tok.to_string(),
-            right: Box::new(self.parse_expression(precedence).unwrap()),
-        })
+            right: Box::new(self.parse_expression(precedence)?),
+        }))
     }
 
     fn expect_peek(&mut self, tok: Token) -> bool {

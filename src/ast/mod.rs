@@ -1,6 +1,4 @@
-use self::expressions::*;
 use self::statements::*;
-use crate::token::Token;
 pub mod expressions;
 pub mod statements;
 
@@ -35,7 +33,7 @@ impl Node for Program {
         self.statements
             .iter()
             .fold(String::new(), |acc, statement| {
-                format!("{acc}{}\n", statement.string())
+                format!("{acc}{}", statement.string())
             })
     }
 }
