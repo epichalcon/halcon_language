@@ -4,19 +4,26 @@ use super::*;
 
 #[test]
 fn test_parse_let_statement() {
-    let input = "let x = 5;
-                    let y = 10;
-                    let foo = 2323124;";
+    let tests = vec![
+        ("let x = 5;", "x", "5"),
+        ("let y = true;", "y", "true"),
+        ("let foobar = y;", "foobar", "y"),
+    ];
 
-    let mut par = Parser::new(Lexer::new(input.to_string()));
-    let pro = par.parse_program();
-    check_parse_errors(par);
-    assert_eq!(3, pro.statements.len());
+    for (input, ident, equals) in tests {
+        let mut par = Parser::new(Lexer::new(input.to_string()));
+        let pro = par.parse_program();
+        check_parse_errors(par);
+        assert_eq!(1, pro.statements.len());
 
-    let tests = vec!["x", "y", "foo"];
+        test_let_statement(ident, &pro.statements[0]);
 
-    for (i, test) in tests.iter().enumerate() {
-        test_let_statement(test, &&pro.statements[i]);
+        let statement = match &pro.statements[0] {
+            StatementNode::LetStatement(exp) => exp,
+            actual => panic!("Expected an expression statement, got {:?}", actual),
+        };
+
+        test_literal_expression(&statement.value, equals)
     }
 }
 
@@ -197,6 +204,15 @@ fn test_operator_precedence_parsing() {
         ("2 / (3 + 4)", "(2 / (3 + 4))"),
         ("-(5 + 5)", "(-(5 + 5))"),
         ("not(true == true)", "(not(true == true))"),
+        ("a + add(b * c) + d", "((a + add((b * c))) + d)"),
+        (
+            "add(a, b, 1, 2 * 3, 4 + 5, add(6, 5 * 3))",
+            "add(a, b, 1, (2 * 3), (4 + 5), add(6, (5 * 3)))",
+        ),
+        (
+            "add(a + b + c * d / f + g)",
+            "add((((a + b) + ((c * d) / f)) + g))",
+        ),
     ];
 
     for (input, expected) in tests {
@@ -335,6 +351,32 @@ fn test_function_parameter_parsing() {
     }
 }
 
+#[test]
+fn test_call_expresion_parsing() {
+    let input = "add(1, 2 + 3, 4 * 5)";
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let program = parser.parse_program();
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+
+    let exp = get_expression_statement(&program.statements[0]);
+
+    let exp = match &exp.expression {
+        ExpressionNode::CallExpression(if_expression) => if_expression,
+        actual => panic!("Expected a call expression, got {:?}", actual),
+    };
+
+    assert_eq!("add", exp.function.string());
+    assert_eq!(3, exp.arguments.len());
+
+    test_literal_expression(&exp.arguments[0], "1");
+    test_infix_expression(&exp.arguments[1], "2", "+", "3");
+    test_infix_expression(&exp.arguments[2], "4", "*", "5");
+}
+
 //-------------------[Test helpers]-------------------//
 
 fn get_expression_statement(statement: &StatementNode) -> &ExpressionStatement {
@@ -365,8 +407,8 @@ fn test_boolean(exp: &ExpressionNode, expected: &str) {
     }
 }
 
-fn test_let_statement(test: &str, statement: &&StatementNode) {
-    match statement {
+fn test_let_statement(test: &str, statement: &StatementNode) {
+    match &statement {
         StatementNode::LetStatement(st) => assert_eq!(test, st.name.token_literal()),
         actual => panic!("Expected a let statement, got {:?}", actual),
     }

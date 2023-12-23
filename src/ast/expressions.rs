@@ -1,6 +1,6 @@
 use std::fmt::format;
 
-use crate::ast::statements::BlockStatement;
+use crate::ast::statements::{self, BlockStatement};
 use crate::ast::{Expression, Node};
 use crate::token::Token;
 
@@ -13,6 +13,7 @@ pub enum ExpressionNode {
     Boolean(Boolean),
     IfExpression(IfExpression),
     FunctionLiteral(FunctionLiteral),
+    CallExpression(CallExpression),
 }
 
 impl Node for ExpressionNode {
@@ -25,6 +26,7 @@ impl Node for ExpressionNode {
             ExpressionNode::Boolean(expression) => expression.token_literal(),
             ExpressionNode::IfExpression(expression) => expression.token_literal(),
             ExpressionNode::FunctionLiteral(expression) => expression.token_literal(),
+            ExpressionNode::CallExpression(expression) => expression.token_literal(),
         }
     }
 
@@ -37,6 +39,7 @@ impl Node for ExpressionNode {
             ExpressionNode::Boolean(expression) => expression.string(),
             ExpressionNode::IfExpression(expression) => expression.string(),
             ExpressionNode::FunctionLiteral(expression) => expression.string(),
+            ExpressionNode::CallExpression(expression) => expression.string(),
         }
     }
 }
@@ -51,6 +54,7 @@ impl Expression for ExpressionNode {
             ExpressionNode::Boolean(expression) => expression.expression_node(),
             ExpressionNode::IfExpression(expression) => expression.expression_node(),
             ExpressionNode::FunctionLiteral(expression) => expression.expression_node(),
+            ExpressionNode::CallExpression(expression) => expression.expression_node(),
         }
     }
 }
@@ -234,12 +238,17 @@ impl Node for FunctionLiteral {
     }
 
     fn string(&self) -> String {
-        let parameters = self
-            .parameters
-            .iter()
-            .fold(String::new(), |acc, statement| {
-                format!("{acc},{}", statement.string())
-            });
+        let parameters =
+            self.parameters
+                .iter()
+                .enumerate()
+                .fold(String::new(), |acc, (i, statement)| {
+                    if i < self.parameters.len() - 1 {
+                        format!("{acc}{}, ", statement.string())
+                    } else {
+                        format!("{acc}{}", statement.string())
+                    }
+                });
 
         format!(
             "{}({}){}",
@@ -251,6 +260,41 @@ impl Node for FunctionLiteral {
 }
 
 impl Expression for FunctionLiteral {
+    fn expression_node(&self) {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CallExpression {
+    pub token: Token,
+    pub function: Box<ExpressionNode>,
+    pub arguments: Vec<ExpressionNode>,
+}
+
+impl Node for CallExpression {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+
+    fn string(&self) -> String {
+        let arguments =
+            self.arguments
+                .iter()
+                .enumerate()
+                .fold(String::new(), |acc, (i, statement)| {
+                    if i < self.arguments.len() - 1 {
+                        format!("{acc}{}, ", statement.string())
+                    } else {
+                        format!("{acc}{}", statement.string())
+                    }
+                });
+
+        format!("{}({})", self.function.string(), arguments)
+    }
+}
+
+impl Expression for CallExpression {
     fn expression_node(&self) {
         todo!()
     }

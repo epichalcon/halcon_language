@@ -1,5 +1,6 @@
 use crate::ast::expressions::{
-    Boolean, FunctionLiteral, IfExpression, InfixExpression, IntegerLiteral, PrefixExpression,
+    Boolean, CallExpression, FunctionLiteral, IfExpression, InfixExpression, IntegerLiteral,
+    PrefixExpression,
 };
 use crate::ast::statements::{BlockStatement, ExpressionStatement};
 use crate::ast::{
@@ -85,35 +86,37 @@ impl Parser {
             token: self.current_token.clone(),
         };
 
-        if !self.expect_peek(Token::Assig) {
-            return Err(MyParseError);
-        }
+        self.expect_peek(Token::Assig);
 
-        while !self.cur_token_is(Token::Semicolon) {
+        self.next_token();
+
+        let expression = self.parse_expression(Precedence::Lowest)?;
+
+        if self.peek_token_is(Token::Semicolon) {
             self.next_token();
         }
 
         Ok(LetStatement {
             token: tok.clone(),
             name,
-            value: ExpressionNode::Identifier(Identifier {
-                token: Token::Invalid("".to_string()),
-            }),
+            value: expression,
         })
     }
 
     fn parse_return_statement(&mut self) -> Result<ReturnStatement, MyParseError> {
         let tok = &self.current_token.clone();
 
-        while !self.cur_token_is(Token::Semicolon) {
+        self.next_token();
+
+        let expression = self.parse_expression(Precedence::Lowest)?;
+
+        if self.peek_token_is(Token::Semicolon) {
             self.next_token();
         }
 
         Ok(ReturnStatement {
             token: tok.clone(),
-            return_value: ExpressionNode::Identifier(Identifier {
-                token: Token::Invalid("".to_string()),
-            }),
+            return_value: expression,
         })
     }
 
@@ -175,6 +178,7 @@ impl Parser {
             | Token::Minus
             | Token::Div
             | Token::Mult => Ok(self.parse_infix_expression(left)?),
+            Token::Opar => Ok(self.parse_call_expression(left)?),
             _ => {
                 self.no_infix_fn_error(self.current_token.clone());
                 Err(MyParseError)
@@ -338,6 +342,40 @@ impl Parser {
         }))
     }
 
+    fn parse_call_expression(
+        &mut self,
+        function: ExpressionNode,
+    ) -> Result<ExpressionNode, MyParseError> {
+        Ok(ExpressionNode::CallExpression(CallExpression {
+            token: self.current_token.clone(),
+            function: Box::new(function),
+            arguments: self.parse_call_arguments()?,
+        }))
+    }
+
+    fn parse_call_arguments(&mut self) -> Result<Vec<ExpressionNode>, MyParseError> {
+        let mut args = vec![];
+
+        if self.peek_token_is(Token::Cpar) {
+            self.next_token();
+            return Ok(args);
+        }
+
+        self.next_token();
+
+        args.push(self.parse_expression(Precedence::Lowest)?);
+
+        while self.peek_token_is(Token::Coma) {
+            self.next_token();
+            self.next_token();
+            args.push(self.parse_expression(Precedence::Lowest)?);
+        }
+
+        self.expect_peek(Token::Cpar);
+
+        Ok(args)
+    }
+
     fn expect_peek(&mut self, tok: Token) -> bool {
         if self.peek_token_is(tok.clone()) {
             self.next_token();
@@ -394,6 +432,7 @@ impl Parser {
             Token::Minus => Precedence::Sum,
             Token::Div => Precedence::Product,
             Token::Mult => Precedence::Product,
+            Token::Opar => Precedence::Call,
             _ => Precedence::Lowest,
         }
     }
