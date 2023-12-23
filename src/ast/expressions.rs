@@ -1,14 +1,17 @@
-use crate::ast::Expression;
-use crate::ast::Node;
+use std::fmt::format;
+
+use crate::ast::statements::BlockStatement;
+use crate::ast::{Expression, Node};
 use crate::token::Token;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExpressionNode {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
     PrefixExpression(PrefixExpression),
     InfixExpression(InfixExpression),
     Boolean(Boolean),
+    IfExpression(IfExpression),
 }
 
 impl Node for ExpressionNode {
@@ -19,6 +22,7 @@ impl Node for ExpressionNode {
             ExpressionNode::PrefixExpression(expression) => expression.token_literal(),
             ExpressionNode::InfixExpression(expression) => expression.token_literal(),
             ExpressionNode::Boolean(expression) => expression.token_literal(),
+            ExpressionNode::IfExpression(expression) => expression.token_literal(),
         }
     }
 
@@ -29,6 +33,7 @@ impl Node for ExpressionNode {
             ExpressionNode::PrefixExpression(expression) => expression.string(),
             ExpressionNode::InfixExpression(expression) => expression.string(),
             ExpressionNode::Boolean(expression) => expression.string(),
+            ExpressionNode::IfExpression(expression) => expression.string(),
         }
     }
 }
@@ -41,13 +46,14 @@ impl Expression for ExpressionNode {
             ExpressionNode::PrefixExpression(expression) => expression.expression_node(),
             ExpressionNode::InfixExpression(expression) => expression.expression_node(),
             ExpressionNode::Boolean(expression) => expression.expression_node(),
+            ExpressionNode::IfExpression(expression) => expression.expression_node(),
         }
     }
 }
 
 //-------------------[Prefix and infix expressions]-------------------//
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PrefixExpression {
     pub token: Token,
     pub operator: String,
@@ -70,7 +76,7 @@ impl Expression for PrefixExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InfixExpression {
     pub token: Token,
     pub left: Box<ExpressionNode>,
@@ -99,9 +105,48 @@ impl Expression for InfixExpression {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct IfExpression {
+    pub token: Token,
+    pub condition: Box<ExpressionNode>,
+    pub consequence: BlockStatement,
+    pub alternative: Option<BlockStatement>,
+}
+
+impl Node for IfExpression {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+
+    fn string(&self) -> String {
+        match &self.alternative {
+            None => {
+                format!(
+                    "if{} {}",
+                    self.condition.string(),
+                    self.consequence.string()
+                )
+            }
+            Some(alternative) => {
+                format!(
+                    "if{} {}else {}",
+                    self.condition.string(),
+                    self.consequence.string(),
+                    alternative.string()
+                )
+            }
+        }
+    }
+}
+impl Expression for IfExpression {
+    fn expression_node(&self) {
+        todo!()
+    }
+}
+
 //-------------------[literals]-------------------//
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Identifier {
     pub token: Token,
 }
@@ -125,7 +170,7 @@ impl Expression for Identifier {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IntegerLiteral {
     pub token: Token,
 }
@@ -148,7 +193,7 @@ impl Expression for IntegerLiteral {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Boolean {
     pub token: Token,
 }

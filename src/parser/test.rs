@@ -1,5 +1,3 @@
-use core::panic;
-
 use crate::ast::{statements::LetStatement, Node};
 
 use super::*;
@@ -210,6 +208,71 @@ fn test_operator_precedence_parsing() {
 
         assert_eq!(expected, program.string());
     }
+}
+
+#[test]
+fn test_if_expression() {
+    let input = "if (x < y) { x }";
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let program = parser.parse_program();
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+
+    let exp = get_expression_statement(&program.statements[0]);
+
+    let if_expression = match &exp.expression {
+        ExpressionNode::IfExpression(if_expression) => if_expression,
+        actual => panic!("Expected an if expression, got {:?}", actual),
+    };
+
+    test_infix_expression(&if_expression.condition, "x", "<", "y");
+
+    assert_eq!(1, if_expression.consequence.statements.len());
+
+    let consequence = get_expression_statement(&if_expression.consequence.statements[0]);
+
+    test_identifier(&consequence.expression, "x")
+}
+
+#[test]
+fn test_if_else_expression() {
+    let input = "if (x < y) { x } else { y }";
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let program = parser.parse_program();
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+
+    let exp = get_expression_statement(&program.statements[0]);
+
+    let if_expression = match &exp.expression {
+        ExpressionNode::IfExpression(if_expression) => if_expression,
+        actual => panic!("Expected an if expression, got {:?}", actual),
+    };
+
+    test_infix_expression(&if_expression.condition, "x", "<", "y");
+
+    assert_eq!(1, if_expression.consequence.statements.len());
+
+    let consequence = get_expression_statement(&if_expression.consequence.statements[0]);
+
+    test_identifier(&consequence.expression, "x");
+
+    let alternative_block = match &if_expression.alternative {
+        Some(alt) => alt,
+        None => panic!("expected an alternative"),
+    };
+
+    assert_eq!(1, alternative_block.statements.len());
+
+    let alternative = get_expression_statement(&alternative_block.statements[0]);
+
+    test_identifier(&alternative.expression, "y")
 }
 
 //-------------------[Test helpers]-------------------//

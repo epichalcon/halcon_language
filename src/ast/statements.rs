@@ -4,11 +4,12 @@ use crate::ast::Node;
 use crate::ast::Statement;
 use crate::token::Token;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StatementNode {
     LetStatement(LetStatement),
     ReturnStatement(ReturnStatement),
     ExpressionStatement(ExpressionStatement),
+    BlockStatement(BlockStatement),
 }
 
 impl Node for StatementNode {
@@ -17,6 +18,7 @@ impl Node for StatementNode {
             StatementNode::LetStatement(statement) => statement.token_literal(),
             StatementNode::ReturnStatement(statement) => statement.token_literal(),
             StatementNode::ExpressionStatement(statement) => statement.token_literal(),
+            StatementNode::BlockStatement(statement) => statement.token_literal(),
         }
     }
 
@@ -25,6 +27,7 @@ impl Node for StatementNode {
             StatementNode::LetStatement(statement) => statement.string(),
             StatementNode::ReturnStatement(statement) => statement.string(),
             StatementNode::ExpressionStatement(statement) => statement.string(),
+            StatementNode::BlockStatement(statement) => statement.string(),
         }
     }
 }
@@ -35,11 +38,12 @@ impl Statement for StatementNode {
             StatementNode::LetStatement(statement) => statement.statement_node(),
             StatementNode::ReturnStatement(statement) => statement.statement_node(),
             StatementNode::ExpressionStatement(statement) => statement.statement_node(),
+            StatementNode::BlockStatement(statement) => statement.statement_node(),
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
@@ -62,7 +66,7 @@ impl Statement for LetStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReturnStatement {
     pub token: Token,
     pub return_value: ExpressionNode,
@@ -84,7 +88,7 @@ impl Statement for ReturnStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExpressionStatement {
     pub token: Token,
     pub expression: ExpressionNode,
@@ -101,6 +105,32 @@ impl Node for ExpressionStatement {
 }
 
 impl Statement for ExpressionStatement {
+    fn statement_node(&self) {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BlockStatement {
+    pub token: Token,
+    pub statements: Vec<StatementNode>,
+}
+
+impl Node for BlockStatement {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+
+    fn string(&self) -> String {
+        self.statements
+            .iter()
+            .fold(String::new(), |acc, statement| {
+                format!("{acc}{}", statement.string())
+            })
+    }
+}
+
+impl Statement for BlockStatement {
     fn statement_node(&self) {
         todo!()
     }

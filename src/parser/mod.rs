@@ -1,5 +1,7 @@
-use crate::ast::expressions::{Boolean, InfixExpression, IntegerLiteral, PrefixExpression};
-use crate::ast::statements::ExpressionStatement;
+use crate::ast::expressions::{
+    Boolean, IfExpression, InfixExpression, IntegerLiteral, PrefixExpression,
+};
+use crate::ast::statements::{BlockStatement, ExpressionStatement};
 use crate::ast::{
     expressions::ExpressionNode, expressions::Identifier, statements::LetStatement,
     statements::ReturnStatement, statements::StatementNode, Program,
@@ -150,6 +152,7 @@ impl Parser {
             Token::Not | Token::Minus => Ok(self.parse_prefix_expression()?),
             Token::ConstBool(b) => Ok(self.parse_boolean(b)?),
             Token::Opar => Ok(self.parse_grouped_expression()?),
+            Token::If => Ok(self.parse_if_expression()?),
             _ => {
                 self.no_prefix_fn_error(self.current_token.clone());
                 Err(MyParseError)
@@ -204,6 +207,59 @@ impl Parser {
         self.expect_peek(Token::Cpar);
 
         Ok(exp)
+    }
+
+    fn parse_if_expression(&mut self) -> Result<ExpressionNode, MyParseError> {
+        let if_token = self.current_token.clone();
+
+        self.expect_peek(Token::Opar);
+        self.next_token();
+        let condition = self.parse_expression(Precedence::Lowest)?;
+        self.expect_peek(Token::Cpar);
+
+        self.expect_peek(Token::Okey);
+
+        let consequence = self.parse_block_statement()?;
+
+        if self.peek_token_is(Token::Else) {
+            self.next_token();
+            self.expect_peek(Token::Okey);
+
+            let alternative = self.parse_block_statement()?;
+
+            Ok(ExpressionNode::IfExpression(IfExpression {
+                token: if_token,
+                condition: Box::new(condition),
+                consequence,
+                alternative: Some(alternative),
+            }))
+        } else {
+            Ok(ExpressionNode::IfExpression(IfExpression {
+                token: if_token,
+                condition: Box::new(condition),
+                consequence,
+                alternative: None,
+            }))
+        }
+    }
+
+    fn parse_block_statement(&mut self) -> Result<BlockStatement, MyParseError> {
+        let block_token = self.current_token.clone();
+
+        let mut block_statements = vec![];
+
+        self.next_token();
+
+        while !self.cur_token_is(Token::Ckey) && !self.cur_token_is(Token::Eof) {
+            let statement = self.parse_statement()?;
+            block_statements.push(statement.clone());
+            self.next_token();
+        }
+
+        Ok(BlockStatement {
+            token: block_token,
+            statements: block_statements,
+        })
     }
 
     fn parse_prefix_expression(&mut self) -> Result<ExpressionNode, MyParseError> {
