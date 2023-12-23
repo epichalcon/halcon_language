@@ -1,12 +1,60 @@
-use std::marker::PhantomData;
-use std::ops::Mul;
+use std::cmp::Ordering;
 
+use crate::ast::expressions::{InfixExpression, IntegerLiteral, PrefixExpression};
+use crate::ast::statements::ExpressionStatement;
 use crate::ast::{
-    Expression, ExpressionNode, Identifier, LetStatement, Program, ReturnStatement, Statement,
-    StatementNode,
+    expressions::ExpressionNode, expressions::Identifier, statements::LetStatement,
+    statements::ReturnStatement, statements::StatementNode, Program,
 };
 use crate::lexer::Lexer;
 use crate::token::Token;
+
+#[cfg(test)]
+mod test;
+
+#[derive(Debug, PartialEq, Eq, PartialOrd)]
+enum Precedence {
+    Lowest,
+    Equals,
+    LessGreater,
+    Sum,
+    Product,
+    Prefix,
+    Call,
+}
+impl Ord for Precedence {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Precedence::Lowest, Precedence::Lowest)
+            | (Precedence::Equals, Precedence::Equals)
+            | (Precedence::LessGreater, Precedence::LessGreater)
+            | (Precedence::Sum, Precedence::Sum)
+            | (Precedence::Product, Precedence::Product)
+            | (Precedence::Prefix, Precedence::Prefix)
+            | (Precedence::Call, Precedence::Call) => std::cmp::Ordering::Equal,
+
+            (Precedence::Call, _) => std::cmp::Ordering::Greater,
+            (_, Precedence::Call) => std::cmp::Ordering::Less,
+
+            (Precedence::Prefix, _) => std::cmp::Ordering::Greater,
+            (_, Precedence::Prefix) => std::cmp::Ordering::Less,
+
+            (Precedence::Product, _) => std::cmp::Ordering::Greater,
+            (_, Precedence::Product) => std::cmp::Ordering::Less,
+
+            (Precedence::Sum, _) => std::cmp::Ordering::Greater,
+            (_, Precedence::Sum) => std::cmp::Ordering::Less,
+
+            (Precedence::LessGreater, _) => std::cmp::Ordering::Greater,
+            (_, Precedence::LessGreater) => std::cmp::Ordering::Less,
+
+            (Precedence::Equals, _) => std::cmp::Ordering::Greater,
+            (_, Precedence::Equals) => std::cmp::Ordering::Less,
+        }
+    }
+}
+
+impl Precedence {}
 
 struct Parser {
     lex: Lexer,
@@ -61,7 +109,9 @@ impl Parser {
             Token::Return => Ok(StatementNode::ReturnStatement(
                 self.parse_return_statement()?,
             )),
-            _ => Err(MyParseError),
+            _ => Ok(StatementNode::ExpressionStatement(
+                self.parse_expression_statement()?,
+            )),
         }
     }
 
@@ -108,6 +158,105 @@ impl Parser {
         })
     }
 
+    fn parse_expression_statement(&mut self) -> Result<ExpressionStatement, MyParseError> {
+        let expression = ExpressionStatement {
+            token: self.current_token.clone(),
+            expression: self.parse_expression(Precedence::Lowest)?,
+        };
+
+        if self.peek_token_is(Token::Semicolon) {
+            self.next_token();
+        }
+
+        Ok(expression)
+    }
+
+    fn parse_expression(&mut self, precedence: Precedence) -> Result<ExpressionNode, MyParseError> {
+        let mut left_expression = self.execute_prefix_parse_function(self.current_token.clone())?;
+
+        while !self.peek_token_is(Token::Semicolon) && precedence < self.peek_precedence() {
+            let peek = self.peek_token.clone();
+            self.next_token();
+            left_expression = self.execute_infix_parse_function(peek, left_expression)?;
+        }
+
+        Ok(left_expression)
+    }
+
+    fn execute_prefix_parse_function(
+        &mut self,
+        tok: Token,
+    ) -> Result<ExpressionNode, MyParseError> {
+        match tok {
+            Token::Id(id) => Ok(self.parse_identifier(id.to_string())),
+            Token::ConstInt(num) => Ok(self.parse_integer_literal(num.to_string())),
+            Token::Not | Token::Minus => Ok(self.parse_prefix_expression()),
+            _ => {
+                self.no_prefix_fn_error(self.current_token.clone());
+                Err(MyParseError)
+            }
+        }
+    }
+
+    fn execute_infix_parse_function(
+        &mut self,
+        tok: Token,
+        left: ExpressionNode,
+    ) -> Result<ExpressionNode, MyParseError> {
+        match tok {
+            Token::Eq
+            | Token::Neq
+            | Token::Lt
+            | Token::Gt
+            | Token::Plus
+            | Token::Minus
+            | Token::Div
+            | Token::Mult => Ok(self.parse_infix_expression(left)),
+            _ => {
+                self.no_infix_fn_error(self.current_token.clone());
+                Err(MyParseError)
+            }
+        }
+    }
+
+    fn parse_identifier(&self, id: String) -> ExpressionNode {
+        ExpressionNode::Identifier(Identifier {
+            token: Token::Id(id.to_string()),
+        })
+    }
+
+    fn parse_integer_literal(&self, num: String) -> ExpressionNode {
+        ExpressionNode::IntegerLiteral(IntegerLiteral {
+            token: Token::ConstInt(num.to_string()),
+        })
+    }
+
+    fn parse_prefix_expression(&mut self) -> ExpressionNode {
+        let tok = self.current_token.clone();
+
+        self.next_token();
+
+        ExpressionNode::PrefixExpression(PrefixExpression {
+            token: tok.clone(),
+            operator: tok.to_string(),
+            right: Box::new(self.parse_expression(Precedence::Prefix).unwrap()),
+        })
+    }
+
+    fn parse_infix_expression(&mut self, left: ExpressionNode) -> ExpressionNode {
+        let tok = self.current_token.clone();
+
+        let precedence = self.current_precedence();
+        self.next_token();
+
+        ExpressionNode::InfixExpression(InfixExpression {
+            token: tok.clone(),
+            left: Box::new(left),
+            operator: tok.to_string(),
+            right: Box::new(self.parse_expression(precedence).unwrap()),
+        })
+    }
+
     fn expect_peek(&mut self, tok: Token) -> bool {
         if self.peek_token_is(tok.clone()) {
             self.next_token();
@@ -124,6 +273,15 @@ impl Parser {
         self.errors.push(msg);
     }
 
+    fn no_prefix_fn_error(&mut self, tok: Token) {
+        let msg = format!("No prefix function for {:?} found", &tok);
+        self.errors.push(msg);
+    }
+
+    fn no_infix_fn_error(&mut self, tok: Token) {
+        let msg = format!("No infix function for {:?} found", &tok);
+        self.errors.push(msg);
+    }
     fn cur_token_is(&self, tok: Token) -> bool {
         match (self.current_token.clone(), tok) {
             (Token::Id(_), Token::Id(_)) => true,
@@ -136,74 +294,29 @@ impl Parser {
             (t1, t2) => t1 == t2,
         }
     }
+
+    fn peek_precedence(&self) -> Precedence {
+        self.get_precedence_from_token(&self.peek_token)
+    }
+
+    fn current_precedence(&self) -> Precedence {
+        self.get_precedence_from_token(&self.current_token)
+    }
+
+    fn get_precedence_from_token(&self, tok: &Token) -> Precedence {
+        match tok {
+            Token::Eq => Precedence::Equals,
+            Token::Neq => Precedence::Equals,
+            Token::Lt => Precedence::LessGreater,
+            Token::Gt => Precedence::LessGreater,
+            Token::Plus => Precedence::Sum,
+            Token::Minus => Precedence::Sum,
+            Token::Div => Precedence::Product,
+            Token::Mult => Precedence::Product,
+            _ => Precedence::Lowest,
+        }
+    }
 }
 
 #[derive(Debug)]
 struct MyParseError;
-
-#[cfg(test)]
-mod test {
-    use core::panic;
-
-    use crate::ast::{Identifier, LetStatement, Node};
-
-    use super::*;
-
-    #[test]
-    fn test_parse_let_statement() {
-        let input = "let x = 5;
-                    let y = 10;
-                    let foo = 2323124;";
-
-        let mut par = Parser::new(Lexer::new(input.to_string()));
-        let pro = par.parse_program();
-        check_parse_errors(par);
-        assert_eq!(3, pro.statements.len());
-
-        let tests = vec!["x", "y", "foo"];
-
-        for (i, test) in tests.iter().enumerate() {
-            test_let_statement(test, &&pro.statements[i]);
-        }
-    }
-
-    fn test_let_statement(test: &str, statement: &&StatementNode) {
-        match statement {
-            StatementNode::LetStatement(st) => assert_eq!(test, st.name.token_literal()),
-            _ => panic!(),
-        }
-    }
-
-    #[test]
-    fn test_parse_return_statement() {
-        let input = "return 3;
-                    return 5;
-                    return 2323124;";
-
-        let mut par = Parser::new(Lexer::new(input.to_string()));
-        let pro = par.parse_program();
-        check_parse_errors(par);
-        assert_eq!(3, pro.statements.len());
-
-        for statement in pro.statements {
-            match statement {
-                StatementNode::ReturnStatement(_) => (),
-                _ => panic!(),
-            }
-        }
-    }
-
-    fn check_parse_errors(par: Parser) {
-        let errors = par.errors();
-        if errors.len() == 0 {
-            return;
-        }
-
-        dbg!(errors.len());
-        dbg!("---------------------");
-        for error in errors {
-            dbg!(error);
-        }
-        panic!()
-    }
-}

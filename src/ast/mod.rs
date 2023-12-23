@@ -1,7 +1,12 @@
+use self::expressions::*;
+use self::statements::*;
 use crate::token::Token;
+pub mod expressions;
+pub mod statements;
 
 pub trait Node {
     fn token_literal(&self) -> String;
+    fn string(&self) -> String;
 }
 
 pub trait Statement: Node {
@@ -25,92 +30,12 @@ impl Node for Program {
             "".to_string()
         }
     }
-}
 
-#[derive(Debug)]
-pub enum StatementNode {
-    LetStatement(LetStatement),
-    ReturnStatement(ReturnStatement),
-}
-
-impl Node for StatementNode {
-    fn token_literal(&self) -> String {
-        match self {
-            StatementNode::LetStatement(statement) => statement.token_literal(),
-            StatementNode::ReturnStatement(statement) => statement.token_literal(),
-            _ => panic!(),
-        }
-    }
-}
-
-impl Statement for StatementNode {
-    fn statement_node(&self) {
-        match self {
-            StatementNode::LetStatement(statement) => statement.statement_node(),
-            StatementNode::ReturnStatement(statement) => statement.statement_node(),
-            _ => panic!(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum ExpressionNode {
-    Identifier(Identifier),
-}
-
-#[derive(Debug)]
-pub struct LetStatement {
-    pub token: Token,
-    pub name: Identifier,
-    pub value: ExpressionNode,
-}
-
-impl Node for LetStatement {
-    fn token_literal(&self) -> String {
-        self.token.to_string()
-    }
-}
-
-impl Statement for LetStatement {
-    fn statement_node(&self) {
-        todo!()
-    }
-}
-
-#[derive(Debug)]
-pub struct ReturnStatement {
-    pub token: Token,
-    pub return_value: ExpressionNode,
-}
-
-impl Node for ReturnStatement {
-    fn token_literal(&self) -> String {
-        self.token.to_string()
-    }
-}
-
-impl Statement for ReturnStatement {
-    fn statement_node(&self) {
-        todo!()
-    }
-}
-
-#[derive(Debug)]
-pub struct Identifier {
-    pub token: Token,
-}
-
-impl Node for Identifier {
-    fn token_literal(&self) -> String {
-        match &self.token {
-            Token::Id(id) => id.to_string(),
-            _ => panic!(),
-        }
-    }
-}
-
-impl Expression for Identifier {
-    fn expression_node(&self) {
-        todo!()
+    fn string(&self) -> String {
+        self.statements
+            .iter()
+            .fold(String::new(), |acc, statement| {
+                format!("{acc}{}\n", statement.string())
+            })
     }
 }

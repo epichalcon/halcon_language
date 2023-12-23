@@ -2,7 +2,7 @@ use core::fmt::Display;
 
 use strum_macros::EnumString;
 
-#[derive(EnumString, Clone, Debug, PartialEq)]
+#[derive(EnumString, Clone, Debug, PartialEq, Hash, Eq)]
 pub enum Token {
     Id(String),
     ConstInt(String),
