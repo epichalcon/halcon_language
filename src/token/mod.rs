@@ -5,10 +5,9 @@ use strum_macros::EnumString;
 #[derive(EnumString, Clone, Debug, PartialEq, Hash, Eq)]
 pub enum Token {
     Id(String),
-    ConstInt(String),
-    ConstFloat(String),
+    ConstInt(i128),
     ConstStr(String),
-    ConstBool(String),
+    ConstBool(bool),
 
     Int,
     Str,
@@ -78,7 +77,6 @@ impl Display for Token {
         match self {
             Token::Id(x) => write!(f, "Id({})", x),
             Token::ConstInt(x) => write!(f, "ConstInt({})", x),
-            Token::ConstFloat(x) => write!(f, "ConstFloat({})", x),
             Token::ConstStr(x) => write!(f, "ConstStr({})", x),
             Token::ConstBool(x) => write!(f, "ConstBool({})", x),
             Token::Invalid(x) => write!(f, "Invalid({})", x),

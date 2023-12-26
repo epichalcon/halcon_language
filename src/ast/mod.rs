@@ -1,4 +1,4 @@
-use self::statements::*;
+use self::{expressions::*, statements::*};
 pub mod expressions;
 pub mod statements;
 
@@ -7,17 +7,64 @@ pub trait Node {
     fn string(&self) -> String;
 }
 
-pub trait Statement: Node {
-    fn statement_node(&self);
+#[derive(Debug, Clone)]
+pub enum AstNode {
+    Program(Program),
+    Identifier(Identifier),
+    IntegerLiteral(IntegerLiteral),
+    PrefixExpression(PrefixExpression),
+    InfixExpression(InfixExpression),
+    Boolean(Boolean),
+    IfExpression(IfExpression),
+    FunctionLiteral(FunctionLiteral),
+    CallExpression(CallExpression),
+    LetStatement(LetStatement),
+    ReturnStatement(ReturnStatement),
+    ExpressionStatement(ExpressionStatement),
+    BlockStatement(BlockStatement),
 }
 
-pub trait Expression: Node {
-    fn expression_node(&self);
+impl Node for AstNode {
+    fn token_literal(&self) -> String {
+        match self {
+            AstNode::Program(expression) => expression.token_literal(),
+            AstNode::Identifier(expression) => expression.token_literal(),
+            AstNode::IntegerLiteral(expression) => expression.token_literal(),
+            AstNode::PrefixExpression(expression) => expression.token_literal(),
+            AstNode::InfixExpression(expression) => expression.token_literal(),
+            AstNode::Boolean(expression) => expression.token_literal(),
+            AstNode::IfExpression(expression) => expression.token_literal(),
+            AstNode::FunctionLiteral(expression) => expression.token_literal(),
+            AstNode::CallExpression(expression) => expression.token_literal(),
+            AstNode::LetStatement(statement) => statement.token_literal(),
+            AstNode::ReturnStatement(statement) => statement.token_literal(),
+            AstNode::ExpressionStatement(statement) => statement.token_literal(),
+            AstNode::BlockStatement(statement) => statement.token_literal(),
+        }
+    }
+
+    fn string(&self) -> String {
+        match self {
+            AstNode::Program(expression) => expression.string(),
+            AstNode::Identifier(expression) => expression.string(),
+            AstNode::IntegerLiteral(expression) => expression.string(),
+            AstNode::PrefixExpression(expression) => expression.string(),
+            AstNode::InfixExpression(expression) => expression.string(),
+            AstNode::Boolean(expression) => expression.string(),
+            AstNode::IfExpression(expression) => expression.string(),
+            AstNode::FunctionLiteral(expression) => expression.string(),
+            AstNode::CallExpression(expression) => expression.string(),
+            AstNode::LetStatement(statement) => statement.string(),
+            AstNode::ReturnStatement(statement) => statement.string(),
+            AstNode::ExpressionStatement(statement) => statement.string(),
+            AstNode::BlockStatement(statement) => statement.string(),
+        }
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Program {
-    pub statements: Vec<StatementNode>,
+    pub statements: Vec<AstNode>,
 }
 
 impl Node for Program {

@@ -1,12 +1,15 @@
 use std::io::{self, Write};
 
 use crate::ast::Node;
+use crate::evaluator::eval;
 use crate::lexer::Lexer;
+use crate::object::environment::Environment;
 use crate::parser::Parser;
 
 const PROMPT: &str = ">>";
 
 pub fn start(input: io::Stdin, mut output: io::Stdout) {
+    let mut env = Environment::new();
     loop {
         print!("{}", PROMPT);
         output.flush().unwrap();
@@ -26,6 +29,10 @@ pub fn start(input: io::Stdin, mut output: io::Stdout) {
             continue;
         }
 
-        println!("{}", program.string());
+        let (evaluated, new_env) = eval(program, env);
+
+        env = new_env;
+
+        println!("{}", evaluated.inspect());
     }
 }

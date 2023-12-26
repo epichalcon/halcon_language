@@ -1,8 +1,4 @@
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::SyncSender;
-
 use crate::token::Token;
-use crate::TS::TsOption;
 
 trait Letter {
     fn is_letter(self) -> bool;
@@ -145,8 +141,8 @@ impl Lexer {
                         "elif" => Token::Elif,
                         "else" => Token::Else,
                         "return" => Token::Return,
-                        "true" => Token::ConstBool("true".to_string()),
-                        "false" => Token::ConstBool("false".to_string()),
+                        "true" => Token::ConstBool(true),
+                        "false" => Token::ConstBool(false),
                         "int" => Token::Int,
                         "str" => Token::Str,
                         "bool" => Token::Bool,
@@ -178,14 +174,17 @@ impl Lexer {
         String::from_utf8_lossy(&self.input[position..self.position]).to_string()
     }
 
-    fn read_number(&mut self) -> String {
+    fn read_number(&mut self) -> i128 {
         let position = self.position;
 
         while self.ch.is_ascii_digit() {
             self.read_char();
         }
 
-        String::from_utf8_lossy(&self.input[position..self.position]).to_string()
+        String::from_utf8_lossy(&self.input[position..self.position])
+            .to_string()
+            .parse::<i128>()
+            .expect("Not a  valid number, numbers must be i128")
     }
 
     fn skip_whitespace(&mut self) {
@@ -216,7 +215,6 @@ impl Lexer {
 
 #[cfg(test)]
 mod test {
-    use crate::token;
 
     use super::*;
 
@@ -267,14 +265,14 @@ mod test {
             Token::Colon,
             Token::Int,
             Token::Assig,
-            Token::ConstInt("5".to_string()),
+            Token::ConstInt(5),
             Token::Semicolon,
             Token::Let,
             Token::Id("ten".to_string()),
             Token::Colon,
             Token::Int,
             Token::Assig,
-            Token::ConstInt("10".to_string()),
+            Token::ConstInt(10),
             Token::Semicolon,
             Token::Let,
             Token::Id("hello".to_string()),
@@ -289,9 +287,9 @@ mod test {
             Token::Arr,
             Token::Assig,
             Token::Obrac,
-            Token::ConstInt("1".to_string()),
+            Token::ConstInt(1),
             Token::Coma,
-            Token::ConstInt("2".to_string()),
+            Token::ConstInt(2),
             Token::Cbrac,
             Token::Semicolon,
             Token::Let,
@@ -299,7 +297,7 @@ mod test {
             Token::Colon,
             Token::Bool,
             Token::Assig,
-            Token::ConstBool("true".to_string()),
+            Token::ConstBool(true),
             Token::Semicolon,
             Token::Let,
             Token::Id("add".to_string()),
@@ -350,14 +348,14 @@ mod test {
             Token::Minus,
             Token::Div,
             Token::Mult,
-            Token::ConstInt(5.to_string()),
+            Token::ConstInt(5),
             Token::Colon,
             Token::Semicolon,
-            Token::ConstInt(5.to_string()),
+            Token::ConstInt(5),
             Token::Lt,
-            Token::ConstInt(10.to_string()),
+            Token::ConstInt(10),
             Token::Gt,
-            Token::ConstInt(5.to_string()),
+            Token::ConstInt(5),
             Token::Semicolon,
             Token::Eof,
         ];
@@ -388,25 +386,25 @@ and or not
         let expected = vec![
             Token::If,
             Token::Opar,
-            Token::ConstInt(5.to_string()),
+            Token::ConstInt(5),
             Token::Lt,
-            Token::ConstInt(10.to_string()),
+            Token::ConstInt(10),
             Token::Cpar,
             Token::Okey,
             Token::Return,
-            Token::ConstBool("true".to_string()),
+            Token::ConstBool(true),
             Token::Semicolon,
             Token::Ckey,
             Token::Elif,
             Token::Okey,
             Token::Return,
-            Token::ConstBool("true".to_string()),
+            Token::ConstBool(true),
             Token::Semicolon,
             Token::Ckey,
             Token::Else,
             Token::Okey,
             Token::Return,
-            Token::ConstBool("false".to_string()),
+            Token::ConstBool(false),
             Token::Semicolon,
             Token::Ckey,
             Token::And,
@@ -434,13 +432,13 @@ and or not
 ";
 
         let expected = vec![
-            Token::ConstInt(10.to_string()),
+            Token::ConstInt(10),
             Token::Eq,
-            Token::ConstInt(10.to_string()),
+            Token::ConstInt(10),
             Token::Semicolon,
-            Token::ConstInt(10.to_string()),
+            Token::ConstInt(10),
             Token::Neq,
-            Token::ConstInt(9.to_string()),
+            Token::ConstInt(9),
             Token::Semicolon,
             Token::Le,
             Token::Ge,

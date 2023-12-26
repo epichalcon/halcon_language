@@ -3,9 +3,9 @@ use crate::ast::expressions::{
     PrefixExpression,
 };
 use crate::ast::statements::{BlockStatement, ExpressionStatement};
+use crate::ast::AstNode;
 use crate::ast::{
-    expressions::ExpressionNode, expressions::Identifier, statements::LetStatement,
-    statements::ReturnStatement, statements::StatementNode, Program,
+    expressions::Identifier, statements::LetStatement, statements::ReturnStatement, Program,
 };
 use crate::lexer::Lexer;
 use crate::parser::precedence::Precedence;
@@ -49,7 +49,7 @@ impl Parser {
         self.peek_token = self.lex.next_token();
     }
 
-    pub fn parse_program(&mut self) -> Program {
+    pub fn parse_program(&mut self) -> AstNode {
         let mut program = Program { statements: vec![] };
 
         while self.current_token != Token::Eof {
@@ -60,16 +60,14 @@ impl Parser {
             self.next_token();
         }
 
-        program
+        AstNode::Program(program)
     }
 
-    fn parse_statement(&mut self) -> Result<StatementNode, MyParseError> {
+    fn parse_statement(&mut self) -> Result<AstNode, MyParseError> {
         match self.current_token {
-            Token::Let => Ok(StatementNode::LetStatement(self.parse_let_statement()?)),
-            Token::Return => Ok(StatementNode::ReturnStatement(
-                self.parse_return_statement()?,
-            )),
-            _ => Ok(StatementNode::ExpressionStatement(
+            Token::Let => Ok(AstNode::LetStatement(self.parse_let_statement()?)),
+            Token::Return => Ok(AstNode::ReturnStatement(self.parse_return_statement()?)),
+            _ => Ok(AstNode::ExpressionStatement(
                 self.parse_expression_statement()?,
             )),
         }
@@ -99,7 +97,7 @@ impl Parser {
         Ok(LetStatement {
             token: tok.clone(),
             name,
-            value: expression,
+            value: Box::new(expression),
         })
     }
 
@@ -116,14 +114,14 @@ impl Parser {
 
         Ok(ReturnStatement {
             token: tok.clone(),
-            return_value: expression,
+            return_value: Box::new(expression),
         })
     }
 
     fn parse_expression_statement(&mut self) -> Result<ExpressionStatement, MyParseError> {
         let expression = ExpressionStatement {
             token: self.current_token.clone(),
-            expression: self.parse_expression(Precedence::Lowest)?,
+            expression: Box::new(self.parse_expression(Precedence::Lowest)?),
         };
 
         if self.peek_token_is(Token::Semicolon) {
@@ -133,7 +131,7 @@ impl Parser {
         Ok(expression)
     }
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Result<ExpressionNode, MyParseError> {
+    fn parse_expression(&mut self, precedence: Precedence) -> Result<AstNode, MyParseError> {
         let mut left_expression = self.execute_prefix_parse_function(self.current_token.clone())?;
 
         while !self.peek_token_is(Token::Semicolon) && precedence < self.peek_precedence() {
@@ -145,13 +143,10 @@ impl Parser {
         Ok(left_expression)
     }
 
-    fn execute_prefix_parse_function(
-        &mut self,
-        tok: Token,
-    ) -> Result<ExpressionNode, MyParseError> {
+    fn execute_prefix_parse_function(&mut self, tok: Token) -> Result<AstNode, MyParseError> {
         match tok {
             Token::Id(id) => Ok(self.parse_identifier(id.to_string())?),
-            Token::ConstInt(num) => Ok(self.parse_integer_literal(num.to_string())?),
+            Token::ConstInt(num) => Ok(self.parse_integer_literal(num)?),
             Token::Not | Token::Minus => Ok(self.parse_prefix_expression()?),
             Token::ConstBool(b) => Ok(self.parse_boolean(b)?),
             Token::Opar => Ok(self.parse_grouped_expression()?),
@@ -167,8 +162,8 @@ impl Parser {
     fn execute_infix_parse_function(
         &mut self,
         tok: Token,
-        left: ExpressionNode,
-    ) -> Result<ExpressionNode, MyParseError> {
+        left: AstNode,
+    ) -> Result<AstNode, MyParseError> {
         match tok {
             Token::Eq
             | Token::Neq
@@ -186,25 +181,25 @@ impl Parser {
         }
     }
 
-    fn parse_identifier(&self, id: String) -> Result<ExpressionNode, MyParseError> {
-        Ok(ExpressionNode::Identifier(Identifier {
+    fn parse_identifier(&self, id: String) -> Result<AstNode, MyParseError> {
+        Ok(AstNode::Identifier(Identifier {
             token: Token::Id(id.to_string()),
         }))
     }
 
-    fn parse_integer_literal(&self, num: String) -> Result<ExpressionNode, MyParseError> {
-        Ok(ExpressionNode::IntegerLiteral(IntegerLiteral {
-            token: Token::ConstInt(num.to_string()),
+    fn parse_integer_literal(&self, num: i128) -> Result<AstNode, MyParseError> {
+        Ok(AstNode::IntegerLiteral(IntegerLiteral {
+            token: Token::ConstInt(num),
         }))
     }
 
-    fn parse_boolean(&self, b: String) -> Result<ExpressionNode, MyParseError> {
-        Ok(ExpressionNode::Boolean(Boolean {
-            token: Token::ConstBool(b.to_string()),
+    fn parse_boolean(&self, b: bool) -> Result<AstNode, MyParseError> {
+        Ok(AstNode::Boolean(Boolean {
+            token: Token::ConstBool(b),
         }))
     }
 
-    fn parse_grouped_expression(&mut self) -> Result<ExpressionNode, MyParseError> {
+    fn parse_grouped_expression(&mut self) -> Result<AstNode, MyParseError> {
         self.next_token();
 
         let exp = self.parse_expression(Precedence::Lowest)?;
@@ -214,7 +209,7 @@ impl Parser {
         Ok(exp)
     }
 
-    fn parse_if_expression(&mut self) -> Result<ExpressionNode, MyParseError> {
+    fn parse_if_expression(&mut self) -> Result<AstNode, MyParseError> {
         let if_token = self.current_token.clone();
 
         self.expect_peek(Token::Opar);
@@ -232,14 +227,14 @@ impl Parser {
 
             let alternative = self.parse_block_statement()?;
 
-            Ok(ExpressionNode::IfExpression(IfExpression {
+            Ok(AstNode::IfExpression(IfExpression {
                 token: if_token,
                 condition: Box::new(condition),
                 consequence,
                 alternative: Some(alternative),
             }))
         } else {
-            Ok(ExpressionNode::IfExpression(IfExpression {
+            Ok(AstNode::IfExpression(IfExpression {
                 token: if_token,
                 condition: Box::new(condition),
                 consequence,
@@ -248,7 +243,7 @@ impl Parser {
         }
     }
 
-    fn parse_function_literal(&mut self) -> Result<ExpressionNode, MyParseError> {
+    fn parse_function_literal(&mut self) -> Result<AstNode, MyParseError> {
         let func_tok = self.current_token.clone();
 
         self.expect_peek(Token::Opar);
@@ -257,7 +252,7 @@ impl Parser {
 
         let block = self.parse_block_statement()?;
 
-        Ok(ExpressionNode::FunctionLiteral(FunctionLiteral {
+        Ok(AstNode::FunctionLiteral(FunctionLiteral {
             token: func_tok,
             parameters,
             body: block,
@@ -313,28 +308,25 @@ impl Parser {
         })
     }
 
-    fn parse_prefix_expression(&mut self) -> Result<ExpressionNode, MyParseError> {
+    fn parse_prefix_expression(&mut self) -> Result<AstNode, MyParseError> {
         let tok = self.current_token.clone();
 
         self.next_token();
 
-        Ok(ExpressionNode::PrefixExpression(PrefixExpression {
+        Ok(AstNode::PrefixExpression(PrefixExpression {
             token: tok.clone(),
             operator: tok.to_string(),
             right: Box::new(self.parse_expression(Precedence::Prefix)?),
         }))
     }
 
-    fn parse_infix_expression(
-        &mut self,
-        left: ExpressionNode,
-    ) -> Result<ExpressionNode, MyParseError> {
+    fn parse_infix_expression(&mut self, left: AstNode) -> Result<AstNode, MyParseError> {
         let tok = self.current_token.clone();
 
         let precedence = self.current_precedence();
         self.next_token();
 
-        Ok(ExpressionNode::InfixExpression(InfixExpression {
+        Ok(AstNode::InfixExpression(InfixExpression {
             token: tok.clone(),
             left: Box::new(left),
             operator: tok.to_string(),
@@ -342,18 +334,15 @@ impl Parser {
         }))
     }
 
-    fn parse_call_expression(
-        &mut self,
-        function: ExpressionNode,
-    ) -> Result<ExpressionNode, MyParseError> {
-        Ok(ExpressionNode::CallExpression(CallExpression {
+    fn parse_call_expression(&mut self, function: AstNode) -> Result<AstNode, MyParseError> {
+        Ok(AstNode::CallExpression(CallExpression {
             token: self.current_token.clone(),
             function: Box::new(function),
             arguments: self.parse_call_arguments()?,
         }))
     }
 
-    fn parse_call_arguments(&mut self) -> Result<Vec<ExpressionNode>, MyParseError> {
+    fn parse_call_arguments(&mut self) -> Result<Vec<AstNode>, MyParseError> {
         let mut args = vec![];
 
         if self.peek_token_is(Token::Cpar) {
