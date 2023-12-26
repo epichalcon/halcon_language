@@ -1,10 +1,9 @@
-use std::io::{self, Write};
-
-use crate::ast::Node;
 use crate::evaluator::eval;
 use crate::lexer::Lexer;
 use crate::object::environment::Environment;
+use crate::object::Object;
 use crate::parser::Parser;
+use std::io::{self, Write};
 
 const PROMPT: &str = ">>";
 

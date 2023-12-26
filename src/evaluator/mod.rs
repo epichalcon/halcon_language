@@ -1,10 +1,10 @@
-use std::env;
+use crate::object::Object;
 
 use crate::{
     ast::{AstNode, Node},
     object::environment::Environment,
     object::{
-        Boolean, Error, Integer, Null, Object, ReturnValue, BOOLEAN, ERROR, INTEGER, NULL, RETURN,
+        Boolean, Error, Integer, ObjectType, ReturnValue, BOOLEAN, ERROR, INTEGER, NULL, RETURN,
     },
     token::Token,
 };
@@ -12,9 +12,9 @@ use crate::{
 #[cfg(test)]
 mod test;
 
-pub fn eval(node: AstNode, env: Environment) -> (Box<dyn Object>, Environment) {
+pub fn eval(node: AstNode, env: Environment) -> (ObjectType, Environment) {
     match node {
-        AstNode::Program(program) => eval_statements(program.statements, env),
+        AstNode::Program(program) => eval_program(program.statements, env),
         AstNode::ExpressionStatement(expression) => eval(*expression.expression, env),
         AstNode::BlockStatement(expressions) => eval_statements(expressions.statements, env),
 
@@ -43,19 +43,37 @@ pub fn eval(node: AstNode, env: Environment) -> (Box<dyn Object>, Environment) {
             )
         }
         AstNode::IfExpression(if_expression) => eval_if_expression(if_expression, env),
-        AstNode::FunctionLiteral(_) => todo!(),
-        AstNode::CallExpression(_) => todo!(),
+        AstNode::FunctionLiteral(function_literal) => {
+            let parameters = function_literal.parameters;
+            let body = function_literal.body;
+            (
+                ObjectType::Function(crate::object::Function {
+                    parameters,
+                    body,
+                    env: env.clone(),
+                }),
+                env,
+            )
+        }
+        AstNode::CallExpression(call) => {
+            let (function, env) = eval(*call.function, env.clone());
+            if is_error(&function) {
+                return (function, env);
+            }
+            let args = eval_expressions(call.arguments.clone(), env.clone());
+            if args.len() == 1 && is_error(&args[0]) {
+                return (args[0].clone(), env.clone());
+            }
+
+            (apply_function(function, args), env)
+        }
         AstNode::LetStatement(let_statement) => {
             let (val, mut env) = eval(*let_statement.value, env);
             if is_error(&val) {
                 return (val, env);
             }
 
-            env.set(
-                let_statement.name.token_literal().as_str(),
-                val.object_type(),
-                val.inspect(),
-            );
+            env.set(let_statement.name.token_literal().as_str(), val.clone());
             (val, env)
         }
         AstNode::ReturnStatement(return_statement) => {
@@ -64,12 +82,17 @@ pub fn eval(node: AstNode, env: Environment) -> (Box<dyn Object>, Environment) {
                 return (val, env);
             }
 
-            return (Box::new(ReturnValue { value: val }), env);
+            return (
+                ObjectType::Return(ReturnValue {
+                    value: Box::new(val),
+                }),
+                env,
+            );
         }
 
         AstNode::Identifier(id) => eval_identifier(id, env),
         AstNode::IntegerLiteral(integer_literal) => (
-            Box::new(Integer {
+            ObjectType::Integer(Integer {
                 value: match integer_literal.token {
                     Token::ConstInt(val) => val,
                     _ => panic!("Not a valid number"),
@@ -78,7 +101,7 @@ pub fn eval(node: AstNode, env: Environment) -> (Box<dyn Object>, Environment) {
             env,
         ),
         AstNode::Boolean(boolean_literal) => (
-            Box::new(Boolean {
+            ObjectType::Boolean(Boolean {
                 value: match boolean_literal.token {
                     Token::ConstBool(val) => val,
                     _ => panic!("Not a valid boolean"),
@@ -89,18 +112,59 @@ pub fn eval(node: AstNode, env: Environment) -> (Box<dyn Object>, Environment) {
     }
 }
 
+fn apply_function(fun: ObjectType, args: Vec<ObjectType>) -> ObjectType {
+    let function = match fun {
+        ObjectType::Function(function) => function,
+        actual => return new_error(format!("not a function {}", actual.object_type().as_str())),
+    };
+
+    let extended_env = extended_function_env(function.clone(), args);
+    let (evaluated, _) = eval(AstNode::BlockStatement(function.body), extended_env);
+
+    unwrap_return_value(evaluated)
+}
+
+fn unwrap_return_value(evaluated: ObjectType) -> ObjectType {
+    match evaluated {
+        ObjectType::Return(return_value) => *return_value.value,
+        _ => evaluated,
+    }
+}
+
+fn extended_function_env(function: crate::object::Function, args: Vec<ObjectType>) -> Environment {
+    let mut env = Environment::new_enclosed_environment(function.env);
+
+    for (i, param) in function.parameters.iter().enumerate() {
+        env.set(param.token_literal().as_str(), args[i].clone());
+    }
+
+    return env;
+}
+
+fn eval_expressions(arguments: Vec<AstNode>, env: Environment) -> Vec<ObjectType> {
+    let mut result = vec![];
+
+    for argument in arguments {
+        let (evaluated, _) = eval(argument, env.clone());
+        if is_error(&evaluated) {
+            return vec![evaluated];
+        }
+
+        result.push(evaluated)
+    }
+
+    result
+}
+
 fn eval_identifier(
     id: crate::ast::expressions::Identifier,
     env: Environment,
-) -> (Box<dyn Object>, Environment) {
+) -> (ObjectType, Environment) {
     match env.get(id.token_literal()) {
-        Some(obj) => (obj, env),
+        Some(obj) => (obj.clone(), env),
         None => {
             return (
-                Box::new(new_error(format!(
-                    "identifier not found: {}",
-                    id.token_literal()
-                ))),
+                new_error(format!("identifier not found: {}", id.token_literal())),
                 env,
             )
         }
@@ -109,23 +173,23 @@ fn eval_identifier(
 
 fn eval_if_expression(
     if_expression: crate::ast::expressions::IfExpression,
-    mut env: Environment,
-) -> (Box<dyn Object>, Environment) {
+    env: Environment,
+) -> (ObjectType, Environment) {
     let (condition, env) = eval(*if_expression.condition, env);
     if is_error(&condition) {
         return (condition, env);
     }
-    if is_truthy(&condition) {
+    if is_truthy(condition) {
         eval(AstNode::BlockStatement(if_expression.consequence), env)
     } else {
         match if_expression.alternative {
             Some(alternative) => eval(AstNode::BlockStatement(alternative), env),
-            None => (Box::new(Null {}), env),
+            None => (ObjectType::Null, env),
         }
     }
 }
 
-fn is_truthy(condition: &Box<dyn Object>) -> bool {
+fn is_truthy(condition: ObjectType) -> bool {
     match condition.object_type().as_str() {
         BOOLEAN => {
             if condition.inspect() == "true" {
@@ -139,116 +203,109 @@ fn is_truthy(condition: &Box<dyn Object>) -> bool {
     }
 }
 
-fn eval_prefix_expression(operator: String, right: Box<dyn Object>) -> Box<dyn Object> {
+fn eval_prefix_expression(operator: String, right: ObjectType) -> ObjectType {
     match operator.as_str() {
         "not" => eval_not_operator(right),
         "-" => eval_minus_prefix_operator(right),
-        _ => Box::new(new_error(format!(
+        _ => new_error(format!(
             "unknown operator: {} {}",
             operator,
             right.object_type()
-        ))),
+        )),
     }
 }
 
-fn eval_not_operator(right: Box<dyn Object>) -> Box<dyn Object> {
+fn eval_not_operator(right: ObjectType) -> ObjectType {
     match right.object_type().as_str() {
         BOOLEAN => match right.inspect().as_str() {
-            "true" => Box::new(Boolean { value: false }),
-            "false" => Box::new(Boolean { value: true }),
+            "true" => ObjectType::Boolean(Boolean { value: false }),
+            "false" => ObjectType::Boolean(Boolean { value: true }),
             _ => panic!("Boolean incorrectly formed"),
         },
-        NULL => Box::new(Boolean { value: true }),
-        _ => Box::new(Boolean { value: false }),
+        NULL => ObjectType::Boolean(Boolean { value: true }),
+        _ => ObjectType::Boolean(Boolean { value: false }),
     }
 }
 
-fn eval_minus_prefix_operator(right: Box<dyn Object>) -> Box<dyn Object> {
+fn eval_minus_prefix_operator(right: ObjectType) -> ObjectType {
     if right.object_type() != INTEGER {
-        return Box::new(new_error(format!(
-            "unknown operator: -{}",
-            right.object_type()
-        )));
+        return new_error(format!("unknown operator: -{}", right.object_type()));
     }
 
     let value: i128 = right.inspect().parse().unwrap();
-    Box::new(Integer { value: -value })
+    ObjectType::Integer(Integer { value: -value })
 }
 
-fn eval_infix_expression(
-    left: Box<dyn Object>,
-    operator: String,
-    right: Box<dyn Object>,
-) -> Box<dyn Object> {
+fn eval_infix_expression(left: ObjectType, operator: String, right: ObjectType) -> ObjectType {
     if left.object_type() == INTEGER && right.object_type() == INTEGER {
         eval_infix_integer_expression(left, operator, right)
     } else if left.object_type() != right.object_type() {
-        Box::new(new_error(format!(
+        new_error(format!(
             "type mismatch: {} {} {}",
             left.object_type(),
             operator,
             right.object_type()
-        )))
+        ))
     } else if operator == "==" {
-        Box::new(Boolean {
+        ObjectType::Boolean(Boolean {
             value: left.inspect() == right.inspect(),
         })
     } else if operator == "!=" {
-        Box::new(Boolean {
+        ObjectType::Boolean(Boolean {
             value: left.inspect() != right.inspect(),
         })
     } else {
-        Box::new(new_error(format!(
+        new_error(format!(
             "unknown operator: {} {} {}",
             left.object_type(),
             operator,
             right.object_type()
-        )))
+        ))
     }
 }
 
 fn eval_infix_integer_expression(
-    left: Box<dyn Object>,
+    left: ObjectType,
     operator: String,
-    right: Box<dyn Object>,
-) -> Box<dyn Object> {
+    right: ObjectType,
+) -> ObjectType {
     let left_val: i128 = left.inspect().parse().unwrap();
     let right_val: i128 = right.inspect().parse().unwrap();
     match operator.as_str() {
-        "+" => Box::new(Integer {
+        "+" => ObjectType::Integer(Integer {
             value: left_val + right_val,
         }),
-        "-" => Box::new(Integer {
+        "-" => ObjectType::Integer(Integer {
             value: left_val - right_val,
         }),
-        "*" => Box::new(Integer {
+        "*" => ObjectType::Integer(Integer {
             value: left_val * right_val,
         }),
-        "/" => Box::new(Integer {
+        "/" => ObjectType::Integer(Integer {
             value: left_val / right_val,
         }),
-        "<" => Box::new(Boolean {
+        "<" => ObjectType::Boolean(Boolean {
             value: left_val < right_val,
         }),
-        ">" => Box::new(Boolean {
+        ">" => ObjectType::Boolean(Boolean {
             value: left_val > right_val,
         }),
-        "==" => Box::new(Boolean {
+        "==" => ObjectType::Boolean(Boolean {
             value: left_val == right_val,
         }),
-        "!=" => Box::new(Boolean {
+        "!=" => ObjectType::Boolean(Boolean {
             value: left_val != right_val,
         }),
-        _ => Box::new(new_error(format!(
+        _ => new_error(format!(
             "unknown operator: {} {} {}",
             left.object_type(),
             operator,
             right.object_type()
-        ))),
+        )),
     }
 }
 
-fn eval_statements(statements: Vec<AstNode>, env: Environment) -> (Box<dyn Object>, Environment) {
+fn eval_program(statements: Vec<AstNode>, env: Environment) -> (ObjectType, Environment) {
     let mut result = None;
     let mut new_env = env.clone();
 
@@ -257,11 +314,10 @@ fn eval_statements(statements: Vec<AstNode>, env: Environment) -> (Box<dyn Objec
 
         new_env = an_env;
 
-        if partial_result.object_type() == RETURN {
-            let ret: ReturnValue = partial_result.into();
-            return (ret.value, env);
+        if let ObjectType::Return(ret) = partial_result {
+            return (*ret.value, env);
         }
-        if partial_result.object_type() == ERROR {
+        if let ObjectType::Error(_) = partial_result {
             return (partial_result, env);
         }
 
@@ -274,10 +330,31 @@ fn eval_statements(statements: Vec<AstNode>, env: Environment) -> (Box<dyn Objec
     }
 }
 
-fn new_error(message: String) -> Error {
-    Error { message }
+fn eval_statements(statements: Vec<AstNode>, env: Environment) -> (ObjectType, Environment) {
+    let mut result = None;
+    let mut new_env = env.clone();
+
+    for statement in statements {
+        let (partial_result, an_env) = eval(statement, new_env.clone());
+
+        new_env = an_env;
+
+        if partial_result.object_type() == RETURN || partial_result.object_type() == ERROR {
+            return (partial_result, new_env);
+        }
+        result = Some(partial_result)
+    }
+
+    match result {
+        Some(res) => (res, new_env),
+        None => panic!("no statements in program"),
+    }
 }
 
-fn is_error(obj: &Box<dyn Object>) -> bool {
+fn new_error(message: String) -> ObjectType {
+    ObjectType::Error(Error { message })
+}
+
+fn is_error(obj: &ObjectType) -> bool {
     obj.object_type() == ERROR
 }

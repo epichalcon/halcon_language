@@ -25,7 +25,7 @@ fn test_eval_integer_expression() {
     for (input, expected) in tests {
         let evaluated = test_eval(input);
 
-        test_integer_object(evaluated.into(), expected);
+        test_integer_object(evaluated, expected);
     }
 }
 
@@ -55,7 +55,7 @@ fn test_eval_boolean_expression() {
     for (input, expected) in tests {
         let evaluated = test_eval(input);
 
-        test_boolean_object(evaluated.into(), expected);
+        test_boolean_object(evaluated, expected);
     }
 }
 
@@ -75,7 +75,7 @@ fn test_not_operator() {
         dbg!(&expected);
         let evaluated = test_eval(input);
 
-        test_boolean_object(evaluated.into(), expected);
+        test_boolean_object(evaluated, expected);
     }
 }
 
@@ -97,9 +97,9 @@ fn test_if_else_expressions() {
         let evaluated = test_eval(input);
 
         if expected != "null" {
-            test_integer_object(evaluated.into(), expected.parse().unwrap())
+            test_integer_object(evaluated, expected.parse().unwrap())
         } else {
-            test_null_object(evaluated.into())
+            test_null_object(evaluated)
         }
     }
 }
@@ -129,7 +129,7 @@ fn test_return_expression() {
         dbg!(&expected);
         let evaluated = test_eval(input);
 
-        test_integer_object(evaluated.into(), expected)
+        test_integer_object(evaluated, expected)
     }
 }
 
@@ -163,7 +163,7 @@ fn test_error_handling() {
         dbg!(&expected);
         let evaluated = test_eval(input);
 
-        test_error_object(evaluated.into(), expected)
+        test_error_object(evaluated, expected)
     }
 }
 
@@ -181,26 +181,93 @@ fn test_let_statements() {
         dbg!(&expected);
         let evaluated = test_eval(input);
 
-        test_integer_object(evaluated.into(), expected)
+        test_integer_object(evaluated, expected)
     }
 }
 
-fn test_null_object(_evaluated: Null) {
-    assert!(true);
+#[test]
+fn test_function_object() {
+    let input = "fun(x) {x + 2}";
+
+    dbg!(&input);
+    let evaluated = test_eval(input);
+
+    let eval = match evaluated {
+        ObjectType::Function(exp) => exp,
+        actual => panic!("Expected a function, got {:?}", actual),
+    };
+
+    assert_eq!(1, eval.parameters.len());
+    assert_eq!("x", eval.parameters[0].token_literal());
+    assert_eq!("(x + 2)", eval.body.string());
 }
 
-fn test_integer_object(evaluated: Integer, expected: i128) {
-    assert_eq!(evaluated.value, expected)
+#[test]
+fn test_function_aplication() {
+    let tests = vec![
+        ("let identity = fun(x) {x;}; identity(5);", 5),
+        ("let identity = fun(x) {return x;}; identity(5);", 5),
+        ("let double = fun(x) {x * 2;}; double(5);", 10),
+        ("let add = fun(x, y) {x + y;}; add(5, 2);", 7),
+        ("let add = fun(x, y) {x + y;}; add(5 + 5, add(5, 5));", 20),
+        ("fun(x) {x;}(5)", 5),
+    ];
+
+    for (input, expected) in tests {
+        dbg!(&input);
+        dbg!(&expected);
+        let evaluated = test_eval(input);
+
+        test_integer_object(evaluated, expected)
+    }
 }
 
-fn test_boolean_object(evaluated: Boolean, expected: bool) {
-    assert_eq!(evaluated.value, expected)
-}
-fn test_error_object(evaluated: Error, expected: &str) {
-    assert_eq!(evaluated.message, expected)
+#[test]
+fn test_closures() {
+    let input = "let new_adder = fun(x) {
+                    fun(y) {x + y};
+                };
+                let add_two = new_adder(2);
+                add_two(2)";
+
+    dbg!(&input);
+    let evaluated = test_eval(input);
+    test_integer_object(evaluated, 4)
 }
 
-fn test_eval(input: &str) -> Box<dyn Object> {
+//-------------------[Test helpers]-------------------//
+
+fn test_null_object(evaluated: ObjectType) {
+    match evaluated {
+        ObjectType::Null => (),
+        actual => panic!("Expected an null, got {:?}", actual),
+    };
+}
+
+fn test_integer_object(evaluated: ObjectType, expected: i128) {
+    let eval = match evaluated {
+        ObjectType::Integer(exp) => exp,
+        actual => panic!("Expected an integer, got {:?}", actual),
+    };
+    assert_eq!(eval.value, expected)
+}
+
+fn test_boolean_object(evaluated: ObjectType, expected: bool) {
+    let eval = match evaluated {
+        ObjectType::Boolean(exp) => exp,
+        actual => panic!("Expected an boolean, got {:?}", actual),
+    };
+    assert_eq!(eval.value, expected)
+}
+fn test_error_object(evaluated: ObjectType, expected: &str) {
+    let eval = match evaluated {
+        ObjectType::Error(exp) => exp,
+        actual => panic!("Expected an error, got {:?}", actual),
+    };
+    assert_eq!(eval.message, expected)
+}
+
+fn test_eval(input: &str) -> ObjectType {
     let mut par = Parser::new(Lexer::new(input.to_string()));
     let pro = par.parse_program();
 

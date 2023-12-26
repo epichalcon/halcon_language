@@ -1,3 +1,5 @@
+use self::environment::Environment;
+use crate::ast::{expressions::Identifier, statements::BlockStatement, Node};
 use std::fmt::Debug;
 
 pub mod environment;
@@ -7,13 +9,48 @@ pub const BOOLEAN: &str = "BOOLEAN";
 pub const NULL: &str = "NULL";
 pub const RETURN: &str = "RETURN";
 pub const ERROR: &str = "ERROR";
+pub const FUNCTION: &str = "FUNCTION";
 
 pub trait Object: Debug {
     fn object_type(&self) -> String;
     fn inspect(&self) -> String;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub enum ObjectType {
+    Integer(Integer),
+    Boolean(Boolean),
+    Null,
+    Return(ReturnValue),
+    Error(Error),
+    Function(Function),
+}
+
+impl Object for ObjectType {
+    fn object_type(&self) -> String {
+        match self {
+            ObjectType::Integer(ty) => ty.object_type(),
+            ObjectType::Boolean(ty) => ty.object_type(),
+            ObjectType::Null => NULL.to_string(),
+            ObjectType::Return(ty) => ty.object_type(),
+            ObjectType::Error(ty) => ty.object_type(),
+            ObjectType::Function(ty) => ty.object_type(),
+        }
+    }
+
+    fn inspect(&self) -> String {
+        match self {
+            ObjectType::Integer(ty) => ty.inspect(),
+            ObjectType::Boolean(ty) => ty.inspect(),
+            ObjectType::Null => "null".to_string(),
+            ObjectType::Return(ty) => ty.inspect(),
+            ObjectType::Error(ty) => ty.inspect(),
+            ObjectType::Function(ty) => ty.inspect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Integer {
     pub value: i128,
 }
@@ -28,17 +65,7 @@ impl Object for Integer {
     }
 }
 
-impl From<Box<dyn Object>> for Integer {
-    fn from(value: Box<dyn Object>) -> Self {
-        if let Ok(integer) = value.inspect().parse::<i128>() {
-            Integer { value: integer }
-        } else {
-            panic!("could not transform Object into Integer")
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Boolean {
     pub value: bool,
 }
@@ -53,20 +80,7 @@ impl Object for Boolean {
     }
 }
 
-impl From<Box<dyn Object>> for Boolean {
-    fn from(value: Box<dyn Object>) -> Self {
-        let boolean_string = value.inspect();
-        Boolean {
-            value: match boolean_string.as_str() {
-                "true" => true,
-                "false" => false,
-                _ => panic!("Could not transform Object into Boolean"),
-            },
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Null {}
 
 impl Object for Null {
@@ -79,20 +93,9 @@ impl Object for Null {
     }
 }
 
-impl From<Box<dyn Object>> for Null {
-    fn from(value: Box<dyn Object>) -> Self {
-        let value = value.inspect();
-        if value == "null" {
-            Null {}
-        } else {
-            panic!("Could not transform Object into Null");
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReturnValue {
-    pub value: Box<dyn Object>,
+    pub value: Box<ObjectType>,
 }
 
 impl Object for ReturnValue {
@@ -105,29 +108,7 @@ impl Object for ReturnValue {
     }
 }
 
-impl From<Box<dyn Object>> for ReturnValue {
-    fn from(value: Box<dyn Object>) -> Self {
-        let ret_value: Box<dyn Object> = match value.object_type().as_str() {
-            BOOLEAN => {
-                if value.inspect() == "true" {
-                    Box::new(Boolean { value: true })
-                } else {
-                    Box::new(Boolean { value: false })
-                }
-            }
-            INTEGER => Box::new(Integer {
-                value: value.inspect().parse().unwrap(),
-            }),
-            NULL => Box::new(Null {}),
-            RETURN => value,
-            _ => panic!("not a valid type"),
-        };
-
-        Self { value: ret_value }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Error {
     pub message: String,
 }
@@ -142,14 +123,31 @@ impl Object for Error {
     }
 }
 
-impl From<Box<dyn Object>> for Error {
-    fn from(value: Box<dyn Object>) -> Self {
-        if value.object_type() != ERROR {
-            panic!("Could not tranform into ERROR")
-        }
+#[derive(Debug, Clone)]
+pub struct Function {
+    pub parameters: Vec<Identifier>,
+    pub body: BlockStatement,
+    pub env: Environment,
+}
 
-        Self {
-            message: value.inspect()[7..].to_string(),
-        }
+impl Object for Function {
+    fn object_type(&self) -> String {
+        FUNCTION.to_string()
+    }
+
+    fn inspect(&self) -> String {
+        let parameters =
+            self.parameters
+                .iter()
+                .enumerate()
+                .fold(String::new(), |acc, (i, statement)| {
+                    if i < self.parameters.len() - 1 {
+                        format!("{acc}{}, ", statement.string())
+                    } else {
+                        format!("{acc}{}", statement.string())
+                    }
+                });
+
+        format!("fn({}) {{{}}}", parameters, self.body.string())
     }
 }
