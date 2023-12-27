@@ -1,6 +1,9 @@
 use self::environment::Environment;
-use crate::ast::{expressions::Identifier, statements::BlockStatement, Node};
-use std::fmt::Debug;
+use crate::{
+    ast::{expressions::Identifier, statements::BlockStatement, Node},
+    Args,
+};
+use std::{fmt::Debug, i128};
 
 pub mod environment;
 
@@ -10,6 +13,8 @@ pub const NULL: &str = "NULL";
 pub const RETURN: &str = "RETURN";
 pub const ERROR: &str = "ERROR";
 pub const FUNCTION: &str = "FUNCTION";
+pub const STRING: &str = "STRING";
+pub const BUILTIN: &str = "BUILTIN";
 
 pub trait Object: Debug {
     fn object_type(&self) -> String;
@@ -24,6 +29,8 @@ pub enum ObjectType {
     Return(ReturnValue),
     Error(Error),
     Function(Function),
+    String(StringObject),
+    Builtin(Builtin),
 }
 
 impl Object for ObjectType {
@@ -35,6 +42,8 @@ impl Object for ObjectType {
             ObjectType::Return(ty) => ty.object_type(),
             ObjectType::Error(ty) => ty.object_type(),
             ObjectType::Function(ty) => ty.object_type(),
+            ObjectType::String(ty) => ty.object_type(),
+            ObjectType::Builtin(ty) => ty.object_type(),
         }
     }
 
@@ -46,6 +55,8 @@ impl Object for ObjectType {
             ObjectType::Return(ty) => ty.inspect(),
             ObjectType::Error(ty) => ty.inspect(),
             ObjectType::Function(ty) => ty.inspect(),
+            ObjectType::String(ty) => ty.inspect(),
+            ObjectType::Builtin(ty) => ty.inspect(),
         }
     }
 }
@@ -90,6 +101,21 @@ impl Object for Null {
 
     fn inspect(&self) -> String {
         "null".to_string()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StringObject {
+    pub value: String,
+}
+
+impl Object for StringObject {
+    fn object_type(&self) -> String {
+        STRING.to_string()
+    }
+
+    fn inspect(&self) -> String {
+        self.value.to_string()
     }
 }
 
@@ -149,5 +175,22 @@ impl Object for Function {
                 });
 
         format!("fn({}) {{{}}}", parameters, self.body.string())
+    }
+}
+
+pub type BuiltinFunction = fn(args: Vec<ObjectType>) -> ObjectType;
+
+#[derive(Debug, Clone)]
+pub struct Builtin {
+    pub function: BuiltinFunction,
+}
+
+impl Object for Builtin {
+    fn object_type(&self) -> String {
+        BUILTIN.to_string()
+    }
+
+    fn inspect(&self) -> String {
+        BUILTIN.to_string()
     }
 }

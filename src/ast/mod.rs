@@ -17,6 +17,7 @@ pub enum AstNode {
     Boolean(Boolean),
     IfExpression(IfExpression),
     FunctionLiteral(FunctionLiteral),
+    StringLiteral(StringLiteral),
     CallExpression(CallExpression),
     LetStatement(LetStatement),
     ReturnStatement(ReturnStatement),
@@ -40,6 +41,7 @@ impl Node for AstNode {
             AstNode::ReturnStatement(statement) => statement.token_literal(),
             AstNode::ExpressionStatement(statement) => statement.token_literal(),
             AstNode::BlockStatement(statement) => statement.token_literal(),
+            AstNode::StringLiteral(statement) => statement.token_literal(),
         }
     }
 
@@ -58,6 +60,7 @@ impl Node for AstNode {
             AstNode::ReturnStatement(statement) => statement.string(),
             AstNode::ExpressionStatement(statement) => statement.string(),
             AstNode::BlockStatement(statement) => statement.string(),
+            AstNode::StringLiteral(statement) => statement.string(),
         }
     }
 }

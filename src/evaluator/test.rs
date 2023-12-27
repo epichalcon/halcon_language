@@ -60,6 +60,22 @@ fn test_eval_boolean_expression() {
 }
 
 #[test]
+fn test_string_literal() {
+    let input = r#""Hello world""#;
+    let evaluated = test_eval(input);
+
+    test_string_object(evaluated, "Hello world".to_string());
+}
+
+#[test]
+fn test_string_literal_concatenation() {
+    let input = r#""Hello" + " " + "world""#;
+    let evaluated = test_eval(input);
+
+    test_string_object(evaluated, "Hello world".to_string());
+}
+
+#[test]
 fn test_not_operator() {
     let tests = vec![
         ("not true", false),
@@ -156,6 +172,12 @@ fn test_error_handling() {
             "unknown operator: BOOLEAN + BOOLEAN",
         ),
         ("foobar;", "identifier not found: foobar"),
+        (r#""hello" - "world";"#, "unknown operator: STRING - STRING"),
+        (r#"len(1)"#, "argument to len not supported, got INTEGER"),
+        (
+            r#"len("one", "two")"#,
+            "wrong number of arguments. got: 2, want: 1",
+        ),
     ];
 
     for (input, expected) in tests {
@@ -235,6 +257,23 @@ fn test_closures() {
     test_integer_object(evaluated, 4)
 }
 
+#[test]
+fn test_builtin_functions() {
+    let tests = vec![
+        (r#"len("")"#, 0),
+        (r#"len("four")"#, 4),
+        (r#"len("hello world")"#, 11),
+    ];
+
+    for (input, expected) in tests {
+        dbg!(&input);
+        dbg!(&expected);
+        let evaluated = test_eval(input);
+
+        test_integer_object(evaluated, expected)
+    }
+}
+
 //-------------------[Test helpers]-------------------//
 
 fn test_null_object(evaluated: ObjectType) {
@@ -259,6 +298,15 @@ fn test_boolean_object(evaluated: ObjectType, expected: bool) {
     };
     assert_eq!(eval.value, expected)
 }
+
+fn test_string_object(evaluated: ObjectType, expected: String) {
+    let eval = match evaluated {
+        ObjectType::String(exp) => exp,
+        actual => panic!("Expected a string, got {:?}", actual),
+    };
+    assert_eq!(eval.value, expected)
+}
+
 fn test_error_object(evaluated: ObjectType, expected: &str) {
     let eval = match evaluated {
         ObjectType::Error(exp) => exp,

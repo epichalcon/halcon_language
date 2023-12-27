@@ -1,6 +1,6 @@
 use crate::ast::expressions::{
     Boolean, CallExpression, FunctionLiteral, IfExpression, InfixExpression, IntegerLiteral,
-    PrefixExpression,
+    PrefixExpression, StringLiteral,
 };
 use crate::ast::statements::{BlockStatement, ExpressionStatement};
 use crate::ast::AstNode;
@@ -152,6 +152,7 @@ impl Parser {
             Token::Opar => Ok(self.parse_grouped_expression()?),
             Token::If => Ok(self.parse_if_expression()?),
             Token::Fun => Ok(self.parse_function_literal()?),
+            Token::ConstStr(s) => Ok(self.parse_string_literal(s)?),
             _ => {
                 self.no_prefix_fn_error(self.current_token.clone());
                 Err(MyParseError)
@@ -196,6 +197,12 @@ impl Parser {
     fn parse_boolean(&self, b: bool) -> Result<AstNode, MyParseError> {
         Ok(AstNode::Boolean(Boolean {
             token: Token::ConstBool(b),
+        }))
+    }
+
+    fn parse_string_literal(&self, s: String) -> Result<AstNode, MyParseError> {
+        Ok(AstNode::StringLiteral(StringLiteral {
+            token: Token::ConstStr(s),
         }))
     }
 

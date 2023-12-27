@@ -168,6 +168,24 @@ impl Node for FunctionLiteral {
 }
 
 #[derive(Debug, Clone)]
+pub struct StringLiteral {
+    pub token: Token,
+}
+
+impl Node for StringLiteral {
+    fn token_literal(&self) -> String {
+        match &self.token {
+            Token::ConstStr(id) => id.to_string(),
+            _ => panic!(),
+        }
+    }
+
+    fn string(&self) -> String {
+        self.token_literal()
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct CallExpression {
     pub token: Token,
     pub function: Box<AstNode>,

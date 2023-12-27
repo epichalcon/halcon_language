@@ -388,6 +388,22 @@ fn test_call_expresion_parsing() {
     test_infix_expression(&exp.arguments[2], "4", "*", "5");
 }
 
+#[test]
+fn test_string_literal_expression() {
+    let input = r#""hello world""#;
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let binding = parser.parse_program();
+    let program = get_program(&binding);
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+
+    let exp = get_expression_statement(&program.statements[0]);
+
+    test_string_literal(&exp.expression, "hello world")
+}
+
 //-------------------[Test helpers]-------------------//
 
 fn get_program(program: &AstNode) -> &Program {
@@ -414,7 +430,7 @@ fn test_identifier(exp: &AstNode, expected: &str) {
 fn test_int_literal(exp: &AstNode, expected: &str) {
     match exp {
         AstNode::IntegerLiteral(id) => assert_eq!(expected, id.token_literal()),
-        actual => panic!("Expected an identifier expression, got {:?}", actual),
+        actual => panic!("Expected an integer literal, got {:?}", actual),
     }
 }
 
@@ -422,6 +438,13 @@ fn test_boolean(exp: &AstNode, expected: &str) {
     match exp {
         AstNode::Boolean(id) => assert_eq!(expected, id.token_literal()),
         actual => panic!("Expected a boolean expression, got {:?}", actual),
+    }
+}
+
+fn test_string_literal(exp: &AstNode, expected: &str) {
+    match exp {
+        AstNode::StringLiteral(id) => assert_eq!(expected, id.token_literal()),
+        actual => panic!("Expected a string literal expression, got {:?}", actual),
     }
 }
 
