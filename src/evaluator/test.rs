@@ -178,6 +178,8 @@ fn test_error_handling() {
             r#"len("one", "two")"#,
             "wrong number of arguments. got: 2, want: 1",
         ),
+        ("[1, 2, 3][3]", "index: 3 out of bounds: 3"),
+        ("[1, 2, 3][-1]", "index: -1 out of bounds: 3"),
     ];
 
     for (input, expected) in tests {
@@ -263,6 +265,49 @@ fn test_builtin_functions() {
         (r#"len("")"#, 0),
         (r#"len("four")"#, 4),
         (r#"len("hello world")"#, 11),
+    ];
+
+    for (input, expected) in tests {
+        dbg!(&input);
+        dbg!(&expected);
+        let evaluated = test_eval(input);
+
+        test_integer_object(evaluated, expected)
+    }
+}
+
+#[test]
+fn test_array_literals() {
+    let input = "[1, 2 * 2, 3 + 3]";
+
+    dbg!(&input);
+    let evaluated = test_eval(input);
+    let result = match evaluated {
+        ObjectType::Array(exp) => exp,
+        actual => panic!("Expected an array, got {:?}", actual),
+    };
+
+    assert_eq!(3, result.elements.len());
+
+    test_integer_object(result.elements[0].clone(), 1);
+    test_integer_object(result.elements[1].clone(), 4);
+    test_integer_object(result.elements[2].clone(), 6);
+}
+
+#[test]
+fn test_array_index_expression() {
+    let tests = vec![
+        ("[1, 2, 3][0]", 1),
+        ("[1, 2, 3][1]", 2),
+        ("[1, 2, 3][2]", 3),
+        ("let i = 0; [1][i]", 1),
+        ("[1, 2, 3][1 + 1]", 3),
+        ("let myArray = [1, 2, 3]; myArray[2]", 3),
+        (
+            "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2]",
+            6,
+        ),
+        ("let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]", 2),
     ];
 
     for (input, expected) in tests {

@@ -219,6 +219,14 @@ fn test_operator_precedence_parsing() {
             "add(a + b + c * d / f + g)",
             "add((((a + b) + ((c * d) / f)) + g))",
         ),
+        (
+            "a * [1, 2, 3, 4][b * c] * d",
+            "((a * ([1, 2, 3, 4][(b * c)])) * d)",
+        ),
+        (
+            "add(a * b[2], b[1], 2 * [1, 2][1])",
+            "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
+        ),
     ];
 
     for (input, expected) in tests {
@@ -404,7 +412,60 @@ fn test_string_literal_expression() {
     test_string_literal(&exp.expression, "hello world")
 }
 
+#[test]
+fn test_parse_array() {
+    let input = "[1, 2 * 2, 3 + 3]";
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let binding = parser.parse_program();
+    let program = get_program(&binding);
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+
+    let exp = get_expression_statement(&program.statements[0]);
+
+    let elem = test_array(&exp.expression, 3);
+
+    test_int_literal(&elem[0], "1");
+    test_infix_expression(&elem[1], "2", "*", "2");
+    test_infix_expression(&elem[2], "3", "+", "3");
+}
+
+#[test]
+fn test_parsing_index_expreson() {
+    let input = "myArray[1 + 1]";
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let binding = parser.parse_program();
+    let program = get_program(&binding);
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+    let exp = get_expression_statement(&program.statements[0]);
+
+    let index_expression = match *exp.expression.clone() {
+        AstNode::IndexExpression(if_expression) => if_expression,
+        actual => panic!("Expected an index expression, got {:?}", actual),
+    };
+
+    test_identifier(&index_expression.left, "myArray");
+    test_infix_expression(&index_expression.index, "1", "+", "1");
+}
+
 //-------------------[Test helpers]-------------------//
+
+fn test_array(array: &AstNode, expected_len: usize) -> Vec<AstNode> {
+    match array {
+        AstNode::ArrayLiteral(arr) => {
+            assert_eq!(expected_len, arr.elements.len());
+            arr.elements.clone()
+        }
+        actual => panic!("Expected an identifier expression, got {:?}", actual),
+    }
+}
 
 fn get_program(program: &AstNode) -> &Program {
     match program {

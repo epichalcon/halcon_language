@@ -78,6 +78,23 @@ impl Node for IfExpression {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct IndexExpression {
+    pub token: Token,
+    pub left: Box<AstNode>,
+    pub index: Box<AstNode>,
+}
+
+impl Node for IndexExpression {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+
+    fn string(&self) -> String {
+        format!("({}[{}])", self.left.string(), self.index.string())
+    }
+}
+
 //-------------------[literals]-------------------//
 
 #[derive(Debug, Clone)]
@@ -182,6 +199,34 @@ impl Node for StringLiteral {
 
     fn string(&self) -> String {
         self.token_literal()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ArrayLiteral {
+    pub token: Token,
+    pub elements: Vec<AstNode>,
+}
+
+impl Node for ArrayLiteral {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+
+    fn string(&self) -> String {
+        let elements =
+            self.elements
+                .iter()
+                .enumerate()
+                .fold(String::new(), |acc, (i, statement)| {
+                    if i < self.elements.len() - 1 {
+                        format!("{acc}{}, ", statement.string())
+                    } else {
+                        format!("{acc}{}", statement.string())
+                    }
+                });
+
+        format!("[{}]", elements)
     }
 }
 

@@ -8,6 +8,7 @@ pub enum Precedence {
     Product,
     Prefix,
     Call,
+    Index,
 }
 
 impl Ord for Precedence {
@@ -19,7 +20,11 @@ impl Ord for Precedence {
             | (Precedence::Sum, Precedence::Sum)
             | (Precedence::Product, Precedence::Product)
             | (Precedence::Prefix, Precedence::Prefix)
+            | (Precedence::Index, Precedence::Index)
             | (Precedence::Call, Precedence::Call) => std::cmp::Ordering::Equal,
+
+            (Precedence::Index, _) => std::cmp::Ordering::Greater,
+            (_, Precedence::Index) => std::cmp::Ordering::Less,
 
             (Precedence::Call, _) => std::cmp::Ordering::Greater,
             (_, Precedence::Call) => std::cmp::Ordering::Less,

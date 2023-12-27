@@ -1,6 +1,7 @@
 use std::env::args;
 
-use crate::object::{Builtin, BuiltinFunction, Object, StringObject, STRING};
+use crate::ast::expressions::ArrayLiteral;
+use crate::object::{Array, Builtin, BuiltinFunction, Object, StringObject, ARRAY, STRING};
 
 use crate::{
     ast::{AstNode, Node},
@@ -120,8 +121,61 @@ pub fn eval(node: AstNode, env: Environment) -> (ObjectType, Environment) {
             }),
             env,
         ),
+        AstNode::ArrayLiteral(array_literal) => {
+            let elements = eval_expressions(array_literal.elements, env.clone());
+            if elements.len() == 1 && is_error(&elements[0]) {
+                (elements[0].clone(), env)
+            } else {
+                (ObjectType::Array(Array { elements }), env)
+            }
+        }
+        AstNode::IndexExpression(index_expression) => {
+            let (left, env) = eval(*index_expression.left, env.clone());
+            if is_error(&left) {
+                return (left, env);
+            }
+            let (index, env) = eval(*index_expression.index, env);
+            if is_error(&index) {
+                return (left, env);
+            }
+
+            (eval_index_expression(left, index), env)
+        }
         _ => panic!("Ast node not treated"),
     }
+}
+
+fn eval_index_expression(left: ObjectType, index: ObjectType) -> ObjectType {
+    if left.object_type() == ARRAY && index.object_type() == INTEGER {
+        eval_array_index_expression(left, index)
+    } else {
+        new_error(format!(
+            "index operator not supported: {}",
+            left.object_type()
+        ))
+    }
+}
+
+fn eval_array_index_expression(arr: ObjectType, index: ObjectType) -> ObjectType {
+    let array = match arr {
+        ObjectType::Array(array) => array,
+        _ => panic!("Should be an array"),
+    };
+
+    let idx = match index {
+        ObjectType::Integer(array) => array.value,
+        _ => panic!("Should be an array"),
+    };
+
+    if idx < 0 || idx as usize >= array.elements.len() {
+        return new_error(format!(
+            "index: {} out of bounds: {}",
+            idx,
+            array.elements.len()
+        ));
+    }
+
+    array.elements[idx as usize].clone()
 }
 
 fn eval_program(statements: Vec<AstNode>, env: Environment) -> (ObjectType, Environment) {

@@ -15,6 +15,7 @@ pub const ERROR: &str = "ERROR";
 pub const FUNCTION: &str = "FUNCTION";
 pub const STRING: &str = "STRING";
 pub const BUILTIN: &str = "BUILTIN";
+pub const ARRAY: &str = "ARRAY";
 
 pub trait Object: Debug {
     fn object_type(&self) -> String;
@@ -31,6 +32,7 @@ pub enum ObjectType {
     Function(Function),
     String(StringObject),
     Builtin(Builtin),
+    Array(Array),
 }
 
 impl Object for ObjectType {
@@ -44,6 +46,7 @@ impl Object for ObjectType {
             ObjectType::Function(ty) => ty.object_type(),
             ObjectType::String(ty) => ty.object_type(),
             ObjectType::Builtin(ty) => ty.object_type(),
+            ObjectType::Array(ty) => ty.object_type(),
         }
     }
 
@@ -57,6 +60,7 @@ impl Object for ObjectType {
             ObjectType::Function(ty) => ty.inspect(),
             ObjectType::String(ty) => ty.inspect(),
             ObjectType::Builtin(ty) => ty.inspect(),
+            ObjectType::Array(ty) => ty.inspect(),
         }
     }
 }
@@ -192,5 +196,32 @@ impl Object for Builtin {
 
     fn inspect(&self) -> String {
         BUILTIN.to_string()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Array {
+    pub elements: Vec<ObjectType>,
+}
+
+impl Object for Array {
+    fn object_type(&self) -> String {
+        return ARRAY.to_string();
+    }
+
+    fn inspect(&self) -> String {
+        let elements =
+            self.elements
+                .iter()
+                .enumerate()
+                .fold(String::new(), |acc, (i, statement)| {
+                    if i < self.elements.len() - 1 {
+                        format!("{acc}{}, ", statement.inspect())
+                    } else {
+                        format!("{acc}{}", statement.inspect())
+                    }
+                });
+
+        format!("[{}]", elements)
     }
 }

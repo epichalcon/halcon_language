@@ -18,6 +18,8 @@ pub enum AstNode {
     IfExpression(IfExpression),
     FunctionLiteral(FunctionLiteral),
     StringLiteral(StringLiteral),
+    ArrayLiteral(ArrayLiteral),
+    IndexExpression(IndexExpression),
     CallExpression(CallExpression),
     LetStatement(LetStatement),
     ReturnStatement(ReturnStatement),
@@ -42,6 +44,8 @@ impl Node for AstNode {
             AstNode::ExpressionStatement(statement) => statement.token_literal(),
             AstNode::BlockStatement(statement) => statement.token_literal(),
             AstNode::StringLiteral(statement) => statement.token_literal(),
+            AstNode::ArrayLiteral(statement) => statement.token_literal(),
+            AstNode::IndexExpression(statement) => statement.token_literal(),
         }
     }
 
@@ -61,6 +65,8 @@ impl Node for AstNode {
             AstNode::ExpressionStatement(statement) => statement.string(),
             AstNode::BlockStatement(statement) => statement.string(),
             AstNode::StringLiteral(statement) => statement.string(),
+            AstNode::ArrayLiteral(statement) => statement.string(),
+            AstNode::IndexExpression(statement) => statement.string(),
         }
     }
 }

@@ -1,6 +1,6 @@
 use crate::ast::expressions::{
-    Boolean, CallExpression, FunctionLiteral, IfExpression, InfixExpression, IntegerLiteral,
-    PrefixExpression, StringLiteral,
+    ArrayLiteral, Boolean, CallExpression, FunctionLiteral, IfExpression, IndexExpression,
+    InfixExpression, IntegerLiteral, PrefixExpression, StringLiteral,
 };
 use crate::ast::statements::{BlockStatement, ExpressionStatement};
 use crate::ast::AstNode;
@@ -153,6 +153,7 @@ impl Parser {
             Token::If => Ok(self.parse_if_expression()?),
             Token::Fun => Ok(self.parse_function_literal()?),
             Token::ConstStr(s) => Ok(self.parse_string_literal(s)?),
+            Token::Obrac => Ok(self.parse_array_literal()?),
             _ => {
                 self.no_prefix_fn_error(self.current_token.clone());
                 Err(MyParseError)
@@ -175,6 +176,7 @@ impl Parser {
             | Token::Div
             | Token::Mult => Ok(self.parse_infix_expression(left)?),
             Token::Opar => Ok(self.parse_call_expression(left)?),
+            Token::Obrac => Ok(self.parse_index_expression(left)?),
             _ => {
                 self.no_infix_fn_error(self.current_token.clone());
                 Err(MyParseError)
@@ -315,6 +317,17 @@ impl Parser {
         })
     }
 
+    fn parse_array_literal(&mut self) -> Result<AstNode, MyParseError> {
+        let tok_array = self.current_token.clone();
+
+        let elements = self.parse_expression_list(Token::Cbrac)?;
+
+        Ok(AstNode::ArrayLiteral(ArrayLiteral {
+            token: tok_array.clone(),
+            elements,
+        }))
+    }
+
     fn parse_prefix_expression(&mut self) -> Result<AstNode, MyParseError> {
         let tok = self.current_token.clone();
 
@@ -324,6 +337,22 @@ impl Parser {
             token: tok.clone(),
             operator: tok.to_string(),
             right: Box::new(self.parse_expression(Precedence::Prefix)?),
+        }))
+    }
+
+    fn parse_index_expression(&mut self, left: AstNode) -> Result<AstNode, MyParseError> {
+        let in_token = self.current_token.clone();
+
+        self.next_token();
+
+        let index = self.parse_expression(Precedence::Lowest)?;
+
+        self.expect_peek(Token::Cbrac);
+
+        Ok(AstNode::IndexExpression(IndexExpression {
+            token: in_token.clone(),
+            left: Box::new(left),
+            index: Box::new(index),
         }))
     }
 
@@ -345,14 +374,14 @@ impl Parser {
         Ok(AstNode::CallExpression(CallExpression {
             token: self.current_token.clone(),
             function: Box::new(function),
-            arguments: self.parse_call_arguments()?,
+            arguments: self.parse_expression_list(Token::Cpar)?,
         }))
     }
 
-    fn parse_call_arguments(&mut self) -> Result<Vec<AstNode>, MyParseError> {
+    fn parse_expression_list(&mut self, end: Token) -> Result<Vec<AstNode>, MyParseError> {
         let mut args = vec![];
 
-        if self.peek_token_is(Token::Cpar) {
+        if self.peek_token_is(end.clone()) {
             self.next_token();
             return Ok(args);
         }
@@ -367,7 +396,7 @@ impl Parser {
             args.push(self.parse_expression(Precedence::Lowest)?);
         }
 
-        self.expect_peek(Token::Cpar);
+        self.expect_peek(end);
 
         Ok(args)
     }
@@ -429,6 +458,7 @@ impl Parser {
             Token::Div => Precedence::Product,
             Token::Mult => Precedence::Product,
             Token::Opar => Precedence::Call,
+            Token::Obrac => Precedence::Index,
             _ => Precedence::Lowest,
         }
     }
