@@ -1,4 +1,4 @@
-use crate::evaluator::eval;
+use crate::evaluator::Evaluator;
 use crate::lexer::Lexer;
 use crate::object::environment::Environment;
 use crate::object::Object;
@@ -28,9 +28,10 @@ pub fn start(input: io::Stdin, mut output: io::Stdout) {
             continue;
         }
 
-        let (evaluated, new_env) = eval(program, env);
+        let mut evaluator = Evaluator::new(env);
+        let evaluated = evaluator.eval(program);
 
-        env = new_env;
+        env = evaluator.env;
 
         println!("{}", evaluated.inspect());
     }

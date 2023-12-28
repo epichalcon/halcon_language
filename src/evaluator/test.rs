@@ -260,6 +260,16 @@ fn test_closures() {
 }
 
 #[test]
+fn test_recursive() {
+    let input =
+        "let factorial = fun(n) { if (n == 0) { 1 } else { n * factorial(n - 1) } }; factorial(5);";
+
+    dbg!(&input);
+    let evaluated = test_eval(input);
+    test_integer_object(evaluated, 120)
+}
+
+#[test]
 fn test_builtin_functions() {
     let tests = vec![
         (r#"len("")"#, 0),
@@ -364,7 +374,7 @@ fn test_eval(input: &str) -> ObjectType {
     let mut par = Parser::new(Lexer::new(input.to_string()));
     let pro = par.parse_program();
 
-    let env = Environment::new();
+    let mut evaluator = Evaluator::new(Environment::new());
 
-    eval(pro, env).0
+    evaluator.eval(pro)
 }

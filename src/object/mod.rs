@@ -1,8 +1,5 @@
 use self::environment::Environment;
-use crate::{
-    ast::{expressions::Identifier, statements::BlockStatement, Node},
-    Args,
-};
+use crate::ast::{expressions::Identifier, statements::BlockStatement, Node};
 use std::{fmt::Debug, i128};
 
 pub mod environment;

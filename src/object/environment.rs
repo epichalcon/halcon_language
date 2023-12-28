@@ -16,10 +16,14 @@ impl Environment {
         }
     }
 
-    pub fn new_enclosed_environment(outer: Self) -> Self {
+    pub fn new_enclosed_environment(outer: &Self) -> Self {
         let mut env = Self::new();
-        env.outer = Some(Box::new(outer));
+        env.outer = Some(Box::new(outer.clone()));
         env
+    }
+
+    pub fn update(&mut self, other: &Self) {
+        self.outer = Some(Box::new(other.clone()));
     }
 
     pub fn get(&self, name: String) -> Option<&ObjectType> {

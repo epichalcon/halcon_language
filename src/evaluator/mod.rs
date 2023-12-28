@@ -1,7 +1,5 @@
-use std::env::args;
-
-use crate::ast::expressions::ArrayLiteral;
-use crate::object::{Array, Builtin, BuiltinFunction, Object, StringObject, ARRAY, STRING};
+use crate::ast::expressions::{Identifier, IfExpression};
+use crate::object::{Array, Function, Object, StringObject, ARRAY, STRING};
 
 use crate::{
     ast::{AstNode, Node},
@@ -12,359 +10,406 @@ use crate::{
     token::Token,
 };
 
+use self::builtin::get_builtin_function;
+
+mod builtin;
 #[cfg(test)]
 mod test;
 
-pub fn eval(node: AstNode, env: Environment) -> (ObjectType, Environment) {
-    match node {
-        AstNode::Program(program) => eval_program(program.statements, env),
-        AstNode::ExpressionStatement(expression) => eval(*expression.expression, env),
-        AstNode::BlockStatement(expressions) => eval_statements(expressions.statements, env),
+pub struct Evaluator {
+    pub env: Environment,
+}
 
-        AstNode::PrefixExpression(prefix_expression) => {
-            let (right, env) = eval(*prefix_expression.right, env);
-            if is_error(&right) {
-                return (right, env);
+impl Evaluator {
+    pub fn new(env: Environment) -> Self {
+        Self { env }
+    }
+
+    pub fn eval(&mut self, node: AstNode) -> ObjectType {
+        match node {
+            AstNode::Program(program) => self.eval_program(program.statements),
+            AstNode::ExpressionStatement(expression) => self.eval(*expression.expression),
+            AstNode::BlockStatement(expressions) => self.eval_statements(expressions.statements),
+
+            AstNode::PrefixExpression(prefix_expression) => {
+                let right = self.eval(*prefix_expression.right);
+                if is_error(&right) {
+                    return right;
+                }
+                self.eval_prefix_expression(prefix_expression.operator, right)
             }
-            (
-                eval_prefix_expression(prefix_expression.operator, right),
-                env,
-            )
-        }
-        AstNode::InfixExpression(infix_expression) => {
-            let (left, env) = eval(*infix_expression.left, env);
-            if is_error(&left) {
-                return (left, env);
+            AstNode::InfixExpression(infix_expression) => {
+                let left = self.eval(*infix_expression.left);
+                if is_error(&left) {
+                    return left;
+                }
+                let right = self.eval(*infix_expression.right);
+                if is_error(&right) {
+                    return right;
+                }
+                self.eval_infix_expression(left, infix_expression.operator, right)
             }
-            let (right, env) = eval(*infix_expression.right, env);
-            if is_error(&right) {
-                return (right, env);
-            }
-            (
-                eval_infix_expression(left, infix_expression.operator, right),
-                env,
-            )
-        }
-        AstNode::IfExpression(if_expression) => eval_if_expression(if_expression, env),
-        AstNode::FunctionLiteral(function_literal) => {
-            let parameters = function_literal.parameters;
-            let body = function_literal.body;
-            (
-                ObjectType::Function(crate::object::Function {
+            AstNode::IfExpression(if_expression) => self.eval_if_expression(if_expression),
+            AstNode::FunctionLiteral(function_literal) => {
+                let parameters = function_literal.parameters;
+                let body = function_literal.body;
+                ObjectType::Function(Function {
                     parameters,
                     body,
-                    env: env.clone(),
-                }),
-                env,
-            )
-        }
-        AstNode::CallExpression(call) => {
-            let (function, env) = eval(*call.function, env.clone());
-            if is_error(&function) {
-                return (function, env);
+                    env: self.env.clone(),
+                })
             }
-            let args = eval_expressions(call.arguments.clone(), env.clone());
-            if args.len() == 1 && is_error(&args[0]) {
-                return (args[0].clone(), env.clone());
-            }
+            AstNode::CallExpression(call) => {
+                let function = self.eval(*call.function);
+                if is_error(&function) {
+                    return function;
+                }
+                let args = self.eval_expressions(call.arguments.clone());
+                if args.len() == 1 && is_error(&args[0]) {
+                    return args[0].clone();
+                }
 
-            (apply_function(function, args), env)
-        }
-        AstNode::LetStatement(let_statement) => {
-            let (val, mut env) = eval(*let_statement.value, env);
-            if is_error(&val) {
-                return (val, env);
+                self.apply_function(function, args)
             }
+            AstNode::LetStatement(let_statement) => {
+                let val = self.eval(*let_statement.value);
+                if is_error(&val) {
+                    return val;
+                }
 
-            env.set(let_statement.name.token_literal().as_str(), val.clone());
-            (val, env)
-        }
-        AstNode::ReturnStatement(return_statement) => {
-            let (val, env) = eval(*return_statement.return_value, env);
-            if is_error(&val) {
-                return (val, env);
+                self.env
+                    .set(let_statement.name.token_literal().as_str(), val.clone());
+                val
             }
+            AstNode::ReturnStatement(return_statement) => {
+                let val = self.eval(*return_statement.return_value);
+                if is_error(&val) {
+                    return val;
+                }
 
-            return (
-                ObjectType::Return(ReturnValue {
+                return ObjectType::Return(ReturnValue {
                     value: Box::new(val),
-                }),
-                env,
-            );
-        }
+                });
+            }
 
-        AstNode::Identifier(id) => eval_identifier(id, env),
-        AstNode::IntegerLiteral(integer_literal) => (
-            ObjectType::Integer(Integer {
+            AstNode::Identifier(id) => self.eval_identifier(id),
+            AstNode::IntegerLiteral(integer_literal) => ObjectType::Integer(Integer {
                 value: match integer_literal.token {
                     Token::ConstInt(val) => val,
                     _ => panic!("Not a valid number"),
                 },
             }),
-            env,
-        ),
-        AstNode::Boolean(boolean_literal) => (
-            ObjectType::Boolean(Boolean {
+            AstNode::Boolean(boolean_literal) => ObjectType::Boolean(Boolean {
                 value: match boolean_literal.token {
                     Token::ConstBool(val) => val,
                     _ => panic!("Not a valid boolean"),
                 },
             }),
-            env,
-        ),
-        AstNode::StringLiteral(string_literal) => (
-            ObjectType::String(StringObject {
+            AstNode::StringLiteral(string_literal) => ObjectType::String(StringObject {
                 value: match string_literal.token {
                     Token::ConstStr(val) => val,
                     _ => panic!("Not a valid boolean"),
                 },
             }),
-            env,
-        ),
-        AstNode::ArrayLiteral(array_literal) => {
-            let elements = eval_expressions(array_literal.elements, env.clone());
-            if elements.len() == 1 && is_error(&elements[0]) {
-                (elements[0].clone(), env)
-            } else {
-                (ObjectType::Array(Array { elements }), env)
+            AstNode::ArrayLiteral(array_literal) => {
+                let elements = self.eval_expressions(array_literal.elements);
+                if elements.len() == 1 && is_error(&elements[0]) {
+                    elements[0].clone()
+                } else {
+                    ObjectType::Array(Array { elements })
+                }
+            }
+            AstNode::IndexExpression(index_expression) => {
+                let left = self.eval(*index_expression.left);
+                if is_error(&left) {
+                    return left;
+                }
+                let index = self.eval(*index_expression.index);
+                if is_error(&index) {
+                    return left;
+                }
+
+                self.eval_index_expression(left, index)
+            }
+            _ => panic!("Ast node not treated"),
+        }
+    }
+
+    fn eval_program(&mut self, statements: Vec<AstNode>) -> ObjectType {
+        let mut result = None;
+
+        for statement in statements {
+            let partial_result = self.eval(statement);
+
+            if let ObjectType::Return(ret) = partial_result {
+                return *ret.value;
+            }
+            if let ObjectType::Error(_) = partial_result {
+                return partial_result;
+            }
+
+            result = Some(partial_result)
+        }
+
+        match result {
+            Some(res) => res,
+            None => panic!("no statements in program"),
+        }
+    }
+
+    fn eval_statements(&mut self, statements: Vec<AstNode>) -> ObjectType {
+        let mut result = None;
+
+        for statement in statements {
+            let partial_result = self.eval(statement);
+
+            if partial_result.object_type() == RETURN || partial_result.object_type() == ERROR {
+                return partial_result;
+            }
+            result = Some(partial_result)
+        }
+
+        match result {
+            Some(res) => res,
+            None => panic!("no statements in program"),
+        }
+    }
+
+    fn eval_prefix_expression(&mut self, operator: String, right: ObjectType) -> ObjectType {
+        match operator.as_str() {
+            "not" => self.eval_not_operator(right),
+            "-" => self.eval_minus_prefix_operator(right),
+            _ => new_error(format!(
+                "unknown operator: {} {}",
+                operator,
+                right.object_type()
+            )),
+        }
+    }
+
+    fn eval_infix_expression(
+        &mut self,
+        left: ObjectType,
+        operator: String,
+        right: ObjectType,
+    ) -> ObjectType {
+        if left.object_type() == INTEGER && right.object_type() == INTEGER {
+            self.eval_infix_integer_expression(left, operator, right)
+        } else if left.object_type() == STRING && right.object_type() == STRING {
+            self.eval_infix_string_expression(left, operator, right)
+        } else if left.object_type() != right.object_type() {
+            new_error(format!(
+                "type mismatch: {} {} {}",
+                left.object_type(),
+                operator,
+                right.object_type()
+            ))
+        } else if operator == "==" {
+            ObjectType::Boolean(Boolean {
+                value: left.inspect() == right.inspect(),
+            })
+        } else if operator == "!=" {
+            ObjectType::Boolean(Boolean {
+                value: left.inspect() != right.inspect(),
+            })
+        } else {
+            new_error(format!(
+                "unknown operator: {} {} {}",
+                left.object_type(),
+                operator,
+                right.object_type()
+            ))
+        }
+    }
+
+    fn eval_if_expression(&mut self, if_expression: IfExpression) -> ObjectType {
+        let condition = self.eval(*if_expression.condition);
+        if is_error(&condition) {
+            return condition;
+        }
+        if is_truthy(condition) {
+            self.eval(AstNode::BlockStatement(if_expression.consequence))
+        } else {
+            match if_expression.alternative {
+                Some(alternative) => self.eval(AstNode::BlockStatement(alternative)),
+                None => ObjectType::Null,
             }
         }
-        AstNode::IndexExpression(index_expression) => {
-            let (left, env) = eval(*index_expression.left, env.clone());
-            if is_error(&left) {
-                return (left, env);
+    }
+
+    fn eval_expressions(&mut self, arguments: Vec<AstNode>) -> Vec<ObjectType> {
+        let mut result = vec![];
+
+        for argument in arguments {
+            let evaluated = self.eval(argument);
+            if is_error(&evaluated) {
+                return vec![evaluated];
             }
-            let (index, env) = eval(*index_expression.index, env);
-            if is_error(&index) {
-                return (left, env);
+
+            result.push(evaluated)
+        }
+
+        result
+    }
+
+    fn eval_index_expression(&mut self, left: ObjectType, index: ObjectType) -> ObjectType {
+        if left.object_type() == ARRAY && index.object_type() == INTEGER {
+            self.eval_array_index_expression(left, index)
+        } else {
+            new_error(format!(
+                "index operator not supported: {}",
+                left.object_type()
+            ))
+        }
+    }
+
+    fn eval_array_index_expression(&self, arr: ObjectType, index: ObjectType) -> ObjectType {
+        let array = match arr {
+            ObjectType::Array(array) => array,
+            _ => panic!("Should be an array"),
+        };
+
+        let idx = match index {
+            ObjectType::Integer(array) => array.value,
+            _ => panic!("Should be an array"),
+        };
+
+        if idx < 0 || idx as usize >= array.elements.len() {
+            return new_error(format!(
+                "index: {} out of bounds: {}",
+                idx,
+                array.elements.len()
+            ));
+        }
+
+        array.elements[idx as usize].clone()
+    }
+
+    fn apply_function(&mut self, fun: ObjectType, args: Vec<ObjectType>) -> ObjectType {
+        match fun {
+            ObjectType::Function(mut function) => {
+                let previous_env = self.env.clone();
+                function.env.update(&previous_env);
+                let extended_env = self.extended_function_env(function.clone(), args);
+
+                self.env = extended_env;
+                let evaluated = self.eval(AstNode::BlockStatement(function.body));
+                self.env = previous_env;
+
+                unwrap_return_value(evaluated)
             }
-
-            (eval_index_expression(left, index), env)
+            ObjectType::Builtin(function) => (function.function)(args),
+            actual => {
+                return new_error(format!("not a function {}", actual.object_type().as_str()))
+            }
         }
-        _ => panic!("Ast node not treated"),
-    }
-}
-
-fn eval_index_expression(left: ObjectType, index: ObjectType) -> ObjectType {
-    if left.object_type() == ARRAY && index.object_type() == INTEGER {
-        eval_array_index_expression(left, index)
-    } else {
-        new_error(format!(
-            "index operator not supported: {}",
-            left.object_type()
-        ))
-    }
-}
-
-fn eval_array_index_expression(arr: ObjectType, index: ObjectType) -> ObjectType {
-    let array = match arr {
-        ObjectType::Array(array) => array,
-        _ => panic!("Should be an array"),
-    };
-
-    let idx = match index {
-        ObjectType::Integer(array) => array.value,
-        _ => panic!("Should be an array"),
-    };
-
-    if idx < 0 || idx as usize >= array.elements.len() {
-        return new_error(format!(
-            "index: {} out of bounds: {}",
-            idx,
-            array.elements.len()
-        ));
     }
 
-    array.elements[idx as usize].clone()
-}
+    fn extended_function_env(&self, function: Function, args: Vec<ObjectType>) -> Environment {
+        let mut env = Environment::new_enclosed_environment(&function.env);
 
-fn eval_program(statements: Vec<AstNode>, env: Environment) -> (ObjectType, Environment) {
-    let mut result = None;
-    let mut new_env = env.clone();
-
-    for statement in statements {
-        let (partial_result, an_env) = eval(statement, new_env.clone());
-
-        new_env = an_env;
-
-        if let ObjectType::Return(ret) = partial_result {
-            return (*ret.value, env);
-        }
-        if let ObjectType::Error(_) = partial_result {
-            return (partial_result, env);
+        for (i, param) in function.parameters.iter().enumerate() {
+            env.set(param.token_literal().as_str(), args[i].clone());
         }
 
-        result = Some(partial_result)
+        return env;
     }
 
-    match result {
-        Some(res) => (res, new_env),
-        None => panic!("no statements in program"),
+    fn eval_identifier(&mut self, id: Identifier) -> ObjectType {
+        match self.env.get(id.token_literal()) {
+            Some(obj) => return obj.clone(),
+            None => {}
+        };
+
+        get_builtin_function(id.token_literal().as_str())
     }
-}
 
-fn eval_statements(statements: Vec<AstNode>, env: Environment) -> (ObjectType, Environment) {
-    let mut result = None;
-    let mut new_env = env.clone();
-
-    for statement in statements {
-        let (partial_result, an_env) = eval(statement, new_env.clone());
-
-        new_env = an_env;
-
-        if partial_result.object_type() == RETURN || partial_result.object_type() == ERROR {
-            return (partial_result, new_env);
+    fn eval_not_operator(&self, right: ObjectType) -> ObjectType {
+        match right.object_type().as_str() {
+            BOOLEAN => match right.inspect().as_str() {
+                "true" => ObjectType::Boolean(Boolean { value: false }),
+                "false" => ObjectType::Boolean(Boolean { value: true }),
+                _ => panic!("Boolean incorrectly formed"),
+            },
+            NULL => ObjectType::Boolean(Boolean { value: true }),
+            _ => ObjectType::Boolean(Boolean { value: false }),
         }
-        result = Some(partial_result)
     }
 
-    match result {
-        Some(res) => (res, new_env),
-        None => panic!("no statements in program"),
-    }
-}
+    fn eval_minus_prefix_operator(&self, right: ObjectType) -> ObjectType {
+        if right.object_type() != INTEGER {
+            return new_error(format!("unknown operator: -{}", right.object_type()));
+        }
 
-fn eval_prefix_expression(operator: String, right: ObjectType) -> ObjectType {
-    match operator.as_str() {
-        "not" => eval_not_operator(right),
-        "-" => eval_minus_prefix_operator(right),
-        _ => new_error(format!(
-            "unknown operator: {} {}",
-            operator,
-            right.object_type()
-        )),
+        let value: i128 = right.inspect().parse().unwrap();
+        ObjectType::Integer(Integer { value: -value })
     }
-}
 
-fn eval_infix_expression(left: ObjectType, operator: String, right: ObjectType) -> ObjectType {
-    if left.object_type() == INTEGER && right.object_type() == INTEGER {
-        eval_infix_integer_expression(left, operator, right)
-    } else if left.object_type() == STRING && right.object_type() == STRING {
-        eval_infix_string_expression(left, operator, right)
-    } else if left.object_type() != right.object_type() {
-        new_error(format!(
-            "type mismatch: {} {} {}",
-            left.object_type(),
-            operator,
-            right.object_type()
-        ))
-    } else if operator == "==" {
-        ObjectType::Boolean(Boolean {
-            value: left.inspect() == right.inspect(),
-        })
-    } else if operator == "!=" {
-        ObjectType::Boolean(Boolean {
-            value: left.inspect() != right.inspect(),
-        })
-    } else {
-        new_error(format!(
-            "unknown operator: {} {} {}",
-            left.object_type(),
-            operator,
-            right.object_type()
-        ))
+    fn eval_infix_integer_expression(
+        &self,
+        left: ObjectType,
+        operator: String,
+        right: ObjectType,
+    ) -> ObjectType {
+        let left_val: i128 = left.inspect().parse().unwrap();
+        let right_val: i128 = right.inspect().parse().unwrap();
+        match operator.as_str() {
+            "+" => ObjectType::Integer(Integer {
+                value: left_val + right_val,
+            }),
+            "-" => ObjectType::Integer(Integer {
+                value: left_val - right_val,
+            }),
+            "*" => ObjectType::Integer(Integer {
+                value: left_val * right_val,
+            }),
+            "/" => ObjectType::Integer(Integer {
+                value: left_val / right_val,
+            }),
+            "<" => ObjectType::Boolean(Boolean {
+                value: left_val < right_val,
+            }),
+            ">" => ObjectType::Boolean(Boolean {
+                value: left_val > right_val,
+            }),
+            "==" => ObjectType::Boolean(Boolean {
+                value: left_val == right_val,
+            }),
+            "!=" => ObjectType::Boolean(Boolean {
+                value: left_val != right_val,
+            }),
+            _ => new_error(format!(
+                "unknown operator: {} {} {}",
+                left.object_type(),
+                operator,
+                right.object_type()
+            )),
+        }
     }
-}
 
-fn eval_if_expression(
-    if_expression: crate::ast::expressions::IfExpression,
-    env: Environment,
-) -> (ObjectType, Environment) {
-    let (condition, env) = eval(*if_expression.condition, env);
-    if is_error(&condition) {
-        return (condition, env);
-    }
-    if is_truthy(condition) {
-        eval(AstNode::BlockStatement(if_expression.consequence), env)
-    } else {
-        match if_expression.alternative {
-            Some(alternative) => eval(AstNode::BlockStatement(alternative), env),
-            None => (ObjectType::Null, env),
+    fn eval_infix_string_expression(
+        &self,
+        left: ObjectType,
+        operator: String,
+        right: ObjectType,
+    ) -> ObjectType {
+        let left_val: String = left.inspect().parse().unwrap();
+        let right_val: String = right.inspect().parse().unwrap();
+        match operator.as_str() {
+            "+" => ObjectType::String(StringObject {
+                value: left_val + &right_val,
+            }),
+            _ => new_error(format!(
+                "unknown operator: {} {} {}",
+                left.object_type(),
+                operator,
+                right.object_type()
+            )),
         }
     }
 }
-
-fn eval_expressions(arguments: Vec<AstNode>, env: Environment) -> Vec<ObjectType> {
-    let mut result = vec![];
-
-    for argument in arguments {
-        let (evaluated, _) = eval(argument, env.clone());
-        if is_error(&evaluated) {
-            return vec![evaluated];
-        }
-
-        result.push(evaluated)
-    }
-
-    result
-}
-
-fn apply_function(fun: ObjectType, args: Vec<ObjectType>) -> ObjectType {
-    match fun {
-        ObjectType::Function(function) => {
-            let extended_env = extended_function_env(function.clone(), args);
-            let (evaluated, _) = eval(AstNode::BlockStatement(function.body), extended_env);
-            unwrap_return_value(evaluated)
-        }
-        ObjectType::Builtin(function) => (function.function)(args),
-        actual => return new_error(format!("not a function {}", actual.object_type().as_str())),
-    }
-}
-
-fn unwrap_return_value(evaluated: ObjectType) -> ObjectType {
-    match evaluated {
-        ObjectType::Return(return_value) => *return_value.value,
-        _ => evaluated,
-    }
-}
-
-fn extended_function_env(function: crate::object::Function, args: Vec<ObjectType>) -> Environment {
-    let mut env = Environment::new_enclosed_environment(function.env);
-
-    for (i, param) in function.parameters.iter().enumerate() {
-        env.set(param.token_literal().as_str(), args[i].clone());
-    }
-
-    return env;
-}
-
-fn eval_identifier(
-    id: crate::ast::expressions::Identifier,
-    env: Environment,
-) -> (ObjectType, Environment) {
-    match env.get(id.token_literal()) {
-        Some(obj) => return (obj.clone(), env),
-        None => {}
-    };
-
-    match id.token_literal().as_str() {
-        "len" => (ObjectType::Builtin(Builtin { function: length }), env),
-        _ => {
-            return (
-                new_error(format!("identifier not found: {}", id.token_literal())),
-                env,
-            )
-        }
-    }
-}
-
-fn length(args: Vec<ObjectType>) -> ObjectType {
-    if args.len() != 1 {
-        return new_error(format!(
-            "wrong number of arguments. got: {}, want: 1",
-            args.len()
-        ));
-    }
-
-    match &args[0] {
-        ObjectType::String(s) => ObjectType::Integer(Integer {
-            value: s.value.len().try_into().unwrap(),
-        }),
-        _ => new_error(format!(
-            "argument to len not supported, got {}",
-            args[0].object_type()
-        )),
-    }
+fn new_error(message: String) -> ObjectType {
+    ObjectType::Error(Error { message })
 }
 
 fn is_truthy(condition: ObjectType) -> bool {
@@ -381,92 +426,13 @@ fn is_truthy(condition: ObjectType) -> bool {
     }
 }
 
-fn eval_not_operator(right: ObjectType) -> ObjectType {
-    match right.object_type().as_str() {
-        BOOLEAN => match right.inspect().as_str() {
-            "true" => ObjectType::Boolean(Boolean { value: false }),
-            "false" => ObjectType::Boolean(Boolean { value: true }),
-            _ => panic!("Boolean incorrectly formed"),
-        },
-        NULL => ObjectType::Boolean(Boolean { value: true }),
-        _ => ObjectType::Boolean(Boolean { value: false }),
-    }
-}
-
-fn eval_minus_prefix_operator(right: ObjectType) -> ObjectType {
-    if right.object_type() != INTEGER {
-        return new_error(format!("unknown operator: -{}", right.object_type()));
-    }
-
-    let value: i128 = right.inspect().parse().unwrap();
-    ObjectType::Integer(Integer { value: -value })
-}
-
-fn eval_infix_integer_expression(
-    left: ObjectType,
-    operator: String,
-    right: ObjectType,
-) -> ObjectType {
-    let left_val: i128 = left.inspect().parse().unwrap();
-    let right_val: i128 = right.inspect().parse().unwrap();
-    match operator.as_str() {
-        "+" => ObjectType::Integer(Integer {
-            value: left_val + right_val,
-        }),
-        "-" => ObjectType::Integer(Integer {
-            value: left_val - right_val,
-        }),
-        "*" => ObjectType::Integer(Integer {
-            value: left_val * right_val,
-        }),
-        "/" => ObjectType::Integer(Integer {
-            value: left_val / right_val,
-        }),
-        "<" => ObjectType::Boolean(Boolean {
-            value: left_val < right_val,
-        }),
-        ">" => ObjectType::Boolean(Boolean {
-            value: left_val > right_val,
-        }),
-        "==" => ObjectType::Boolean(Boolean {
-            value: left_val == right_val,
-        }),
-        "!=" => ObjectType::Boolean(Boolean {
-            value: left_val != right_val,
-        }),
-        _ => new_error(format!(
-            "unknown operator: {} {} {}",
-            left.object_type(),
-            operator,
-            right.object_type()
-        )),
-    }
-}
-
-fn eval_infix_string_expression(
-    left: ObjectType,
-    operator: String,
-    right: ObjectType,
-) -> ObjectType {
-    let left_val: String = left.inspect().parse().unwrap();
-    let right_val: String = right.inspect().parse().unwrap();
-    match operator.as_str() {
-        "+" => ObjectType::String(StringObject {
-            value: left_val + &right_val,
-        }),
-        _ => new_error(format!(
-            "unknown operator: {} {} {}",
-            left.object_type(),
-            operator,
-            right.object_type()
-        )),
-    }
-}
-
-fn new_error(message: String) -> ObjectType {
-    ObjectType::Error(Error { message })
-}
-
 fn is_error(obj: &ObjectType) -> bool {
     obj.object_type() == ERROR
+}
+
+fn unwrap_return_value(evaluated: ObjectType) -> ObjectType {
+    match evaluated {
+        ObjectType::Return(return_value) => *return_value.value,
+        _ => evaluated,
+    }
 }
