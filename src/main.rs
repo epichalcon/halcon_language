@@ -6,27 +6,26 @@ mod parser;
 mod repl;
 mod token;
 
-use std::io;
+use std::{fs, io};
 
 use docopt::Docopt;
+use evaluator::Evaluator;
+use lexer::Lexer;
+use parser::Parser;
 use serde::Deserialize;
 
 static USAGE: &'static str = "
-Usage: halcon [-s <input>]
+Usage: halcon [<input>]
 
     default: runns the language REPL
     Option:
-        -s <input>: an input file can be specified from whitch to get the code
+        <input>: an input file can be specified from whitch to get the code
 ";
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Args {
-    arg_input: String,
-    arg_output: String,
-    flag_c: bool,
-    flag_o: bool,
-    flag_b: bool,
+    arg_input: Option<String>,
 }
 
 pub fn get_args() -> Args {
@@ -36,35 +35,34 @@ pub fn get_args() -> Args {
 }
 
 fn main() {
-    println!("Welcome to halcon");
-    repl::start(io::stdin(), io::stdout());
-}
-
-#[allow(unused_variables)]
-fn main1() -> Result<(), i8> {
     let args: Args = get_args();
 
-    let input_file_name = args.arg_input;
-    let output_file_name = args.arg_output;
+    match args.arg_input {
+        Some(input_file_name) => {
+            if !input_file_name.ends_with(".hc") {
+                panic!("not a valid extension")
+            }
+            execute_file(input_file_name);
+        }
+        None => {
+            println!("Welcome to halcon");
+            repl::start(io::stdin(), io::stdout());
+        }
+    }
+}
 
-    // se comprueba la validez de los flags
+fn execute_file(file_name: String) {
+    let contents = fs::read_to_string(file_name).unwrap();
+    let lex = Lexer::new(contents);
+    let mut pars = Parser::new(lex);
 
-    // let file_result = fs::read_to_string(&input_file_name);
-    // let input_file = match file_result {
-    //     Ok(file) => file,
-    //     Err(_) => {
-    //         println!(
-    //             "
-    //             Not able to open {}",
-    //             &input_file_name
-    //         );
-    //         return Err(3);
-    //     }
-    // };
+    let program = pars.parse_program();
 
-    println!("input_file_name: {}", input_file_name);
-    println!("output_file_name: {}", output_file_name);
-    //println!("token len: {}", token_list.len());
+    if pars.errors().len() != 0 {
+        println!("Errors have been found: \n{:?}", pars.errors());
+        return;
+    }
 
-    Ok(())
+    let mut evaluator = Evaluator::new();
+    let _ = evaluator.eval(program);
 }

@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use serde::de::value;
-
 use crate::ast::expressions::{DictLiteral, Identifier, IfExpression};
 use crate::object::{
     Array, Dict, Function, Object, StringObject, ARRAY, BUILTIN, DICT, FUNCTION, STRING,
@@ -27,7 +25,13 @@ pub struct Evaluator {
 }
 
 impl Evaluator {
-    pub fn new(env: Environment) -> Self {
+    pub fn new() -> Self {
+        Self {
+            env: Environment::new(),
+        }
+    }
+
+    pub fn new_env(env: Environment) -> Self {
         Self { env }
     }
 
@@ -262,7 +266,7 @@ impl Evaluator {
     fn eval_index_expression(&mut self, left: ObjectType, index: ObjectType) -> ObjectType {
         if left.object_type() == ARRAY && index.object_type() == INTEGER {
             self.eval_array_index_expression(left, index)
-        } else if (left.object_type() == DICT) {
+        } else if left.object_type() == DICT {
             self.eval_dictionary_index_expression(left, index)
         } else {
             new_error(format!(

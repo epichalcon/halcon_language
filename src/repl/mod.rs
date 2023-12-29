@@ -28,7 +28,7 @@ pub fn start(input: io::Stdin, mut output: io::Stdout) {
             continue;
         }
 
-        let mut evaluator = Evaluator::new(env);
+        let mut evaluator = Evaluator::new_env(env);
         let evaluated = evaluator.eval(program);
 
         env = evaluator.env;
