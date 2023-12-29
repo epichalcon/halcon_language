@@ -1,10 +1,13 @@
+use std::collections::HashMap;
+use std::hash::Hash;
+
 use crate::ast::statements::BlockStatement;
 use crate::ast::Node;
 use crate::token::Token;
 
 use super::AstNode;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PrefixExpression {
     pub token: Token,
     pub operator: String,
@@ -21,7 +24,7 @@ impl Node for PrefixExpression {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct InfixExpression {
     pub token: Token,
     pub left: Box<AstNode>,
@@ -44,7 +47,7 @@ impl Node for InfixExpression {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IfExpression {
     pub token: Token,
     pub condition: Box<AstNode>,
@@ -78,7 +81,7 @@ impl Node for IfExpression {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IndexExpression {
     pub token: Token,
     pub left: Box<AstNode>,
@@ -97,7 +100,7 @@ impl Node for IndexExpression {
 
 //-------------------[literals]-------------------//
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Identifier {
     pub token: Token,
 }
@@ -115,7 +118,7 @@ impl Node for Identifier {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IntegerLiteral {
     pub token: Token,
 }
@@ -132,7 +135,7 @@ impl Node for IntegerLiteral {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Boolean {
     pub token: Token,
 }
@@ -150,7 +153,7 @@ impl Node for Boolean {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FunctionLiteral {
     pub token: Token,
     pub parameters: Vec<Identifier>,
@@ -184,7 +187,7 @@ impl Node for FunctionLiteral {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StringLiteral {
     pub token: Token,
 }
@@ -202,7 +205,7 @@ impl Node for StringLiteral {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ArrayLiteral {
     pub token: Token,
     pub elements: Vec<AstNode>,
@@ -230,7 +233,41 @@ impl Node for ArrayLiteral {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DictLiteral {
+    pub token: Token,
+    pub pairs: HashMap<AstNode, AstNode>,
+}
+
+impl Node for DictLiteral {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+
+    fn string(&self) -> String {
+        let pairs = self
+            .pairs
+            .iter()
+            .enumerate()
+            .fold(String::new(), |acc, (i, (key, val))| {
+                if i < self.pairs.len() - 1 {
+                    format!("{acc}{}: {}, ", key.string(), val.string())
+                } else {
+                    format!("{acc}{}: {}", key.string(), val.string())
+                }
+            });
+
+        format!("{{{}}}", pairs)
+    }
+}
+
+impl Hash for DictLiteral {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.token.hash(state);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CallExpression {
     pub token: Token,
     pub function: Box<AstNode>,

@@ -1,6 +1,11 @@
+use std::collections::HashMap;
+use std::process::CommandArgs;
+
+use serde::de::value;
+
 use crate::ast::expressions::{
-    ArrayLiteral, Boolean, CallExpression, FunctionLiteral, IfExpression, IndexExpression,
-    InfixExpression, IntegerLiteral, PrefixExpression, StringLiteral,
+    ArrayLiteral, Boolean, CallExpression, DictLiteral, FunctionLiteral, IfExpression,
+    IndexExpression, InfixExpression, IntegerLiteral, PrefixExpression, StringLiteral,
 };
 use crate::ast::statements::{BlockStatement, ExpressionStatement};
 use crate::ast::AstNode;
@@ -154,6 +159,7 @@ impl Parser {
             Token::Fun => Ok(self.parse_function_literal()?),
             Token::ConstStr(s) => Ok(self.parse_string_literal(s)?),
             Token::Obrac => Ok(self.parse_array_literal()?),
+            Token::Okey => Ok(self.parse_dict_literal()?),
             _ => {
                 self.no_prefix_fn_error(self.current_token.clone());
                 Err(MyParseError)
@@ -461,6 +467,35 @@ impl Parser {
             Token::Obrac => Precedence::Index,
             _ => Precedence::Lowest,
         }
+    }
+
+    fn parse_dict_literal(&mut self) -> Result<AstNode, MyParseError> {
+        let dict_tock = self.current_token.clone();
+
+        let mut pairs: HashMap<AstNode, AstNode> = HashMap::new();
+
+        while !self.peek_token_is(Token::Ckey) {
+            self.next_token();
+            let key = self.parse_expression(Precedence::Lowest)?;
+
+            self.expect_peek(Token::Colon);
+
+            self.next_token();
+            let value = self.parse_expression(Precedence::Lowest)?;
+
+            pairs.insert(key, value);
+
+            if !self.peek_token_is(Token::Ckey) && !self.expect_peek(Token::Coma) {
+                return Err(MyParseError);
+            }
+        }
+
+        self.expect_peek(Token::Ckey);
+
+        Ok(AstNode::DictLiteral(DictLiteral {
+            token: dict_tock,
+            pairs,
+        }))
     }
 }
 

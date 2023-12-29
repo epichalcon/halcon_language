@@ -4,7 +4,7 @@ use crate::token::Token;
 
 use super::AstNode;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
@@ -21,7 +21,7 @@ impl Node for LetStatement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ReturnStatement {
     pub token: Token,
     pub return_value: Box<AstNode>,
@@ -37,7 +37,7 @@ impl Node for ReturnStatement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExpressionStatement {
     pub token: Token,
     pub expression: Box<AstNode>,
@@ -53,7 +53,7 @@ impl Node for ExpressionStatement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlockStatement {
     pub token: Token,
     pub statements: Vec<AstNode>,

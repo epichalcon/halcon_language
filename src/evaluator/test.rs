@@ -1,3 +1,8 @@
+use core::panic;
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+
 use super::*;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
@@ -180,6 +185,12 @@ fn test_error_handling() {
         ),
         ("[1, 2, 3][3]", "index: 3 out of bounds: 3"),
         ("[1, 2, 3][-1]", "index: -1 out of bounds: 3"),
+        ("{[1]: 1}", "unusable as hash key: ARRAY"),
+        ("{fun(x) {x}: 1}", "unusable as hash key: FUNCTION"),
+        (
+            r#"{"name": "asdf"}[fun(x) {x}]"#,
+            "unusable as hash key: FUNCTION",
+        ),
     ];
 
     for (input, expected) in tests {
@@ -326,6 +337,109 @@ fn test_array_index_expression() {
         let evaluated = test_eval(input);
 
         test_integer_object(evaluated, expected)
+    }
+}
+
+#[test]
+fn test_hash_key() {
+    let hello1 = StringObject {
+        value: "Hello".to_string(),
+    };
+    let hello2 = StringObject {
+        value: "Hello".to_string(),
+    };
+
+    let diff = StringObject {
+        value: "Hello 2".to_string(),
+    };
+
+    let mut hasher1 = DefaultHasher::new();
+    let mut hasher2 = DefaultHasher::new();
+    let mut hasher3 = DefaultHasher::new();
+    hello1.hash(&mut hasher1);
+    hello2.hash(&mut hasher2);
+    diff.hash(&mut hasher3);
+
+    assert_eq!(hasher1.finish(), hasher2.finish());
+    assert_ne!(hasher1.finish(), hasher3.finish());
+}
+
+#[test]
+fn test_hash_literals() {
+    let input = r#"let two = "two";
+    {
+    "one": 10 - 9,
+    two: 1 + 1,
+    "thr" + "ee": 6 / 2,
+    4: 4,
+    true: 5,
+    false: 6,
+    }"#;
+
+    dbg!(&input);
+
+    let mut dictionary = HashMap::new();
+
+    dictionary.insert(
+        ObjectType::String(StringObject {
+            value: "one".to_string(),
+        }),
+        1,
+    );
+    dictionary.insert(
+        ObjectType::String(StringObject {
+            value: "two".to_string(),
+        }),
+        2,
+    );
+    dictionary.insert(
+        ObjectType::String(StringObject {
+            value: "three".to_string(),
+        }),
+        3,
+    );
+    dictionary.insert(ObjectType::Integer(Integer { value: 4 }), 4);
+    dictionary.insert(ObjectType::Boolean(Boolean { value: true }), 5);
+    dictionary.insert(ObjectType::Boolean(Boolean { value: false }), 6);
+
+    let evaluated = test_eval(input);
+
+    let result = match evaluated {
+        ObjectType::Dict(dic) => dic,
+        other => panic!("expected dict, found {:?}", other),
+    };
+
+    assert_eq!(result.pairs.len(), dictionary.len());
+
+    for (expkey, expval) in dictionary.iter() {
+        let val = result.pairs.get(expkey).unwrap();
+
+        test_integer_object(val.clone(), *expval);
+    }
+}
+
+#[test]
+fn test_hash_index_expression() {
+    let tests = vec![
+        (r#"{"foo": 5}["foo"]"#, 5),
+        (r#"{"foo": 5}["bar"]"#, -1),
+        (r#"{}["bar"]"#, -1),
+        (r#"let key = "foo"; {"foo": 5}[key]"#, 5),
+        (r#"{5: 5}[5]"#, 5),
+        (r#"{true: 5}[true]"#, 5),
+        (r#"{false: 5}[false]"#, 5),
+    ];
+
+    for (input, expected) in tests {
+        dbg!(&input);
+        dbg!(&expected);
+        let evaluated = test_eval(input);
+
+        if expected == -1 {
+            test_null_object(evaluated)
+        } else {
+            test_integer_object(evaluated, expected)
+        }
     }
 }
 

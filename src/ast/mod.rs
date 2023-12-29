@@ -7,7 +7,7 @@ pub trait Node {
     fn string(&self) -> String;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AstNode {
     Program(Program),
     Identifier(Identifier),
@@ -19,6 +19,7 @@ pub enum AstNode {
     FunctionLiteral(FunctionLiteral),
     StringLiteral(StringLiteral),
     ArrayLiteral(ArrayLiteral),
+    DictLiteral(DictLiteral),
     IndexExpression(IndexExpression),
     CallExpression(CallExpression),
     LetStatement(LetStatement),
@@ -46,6 +47,7 @@ impl Node for AstNode {
             AstNode::StringLiteral(statement) => statement.token_literal(),
             AstNode::ArrayLiteral(statement) => statement.token_literal(),
             AstNode::IndexExpression(statement) => statement.token_literal(),
+            AstNode::DictLiteral(statement) => statement.token_literal(),
         }
     }
 
@@ -67,11 +69,12 @@ impl Node for AstNode {
             AstNode::StringLiteral(statement) => statement.string(),
             AstNode::ArrayLiteral(statement) => statement.string(),
             AstNode::IndexExpression(statement) => statement.string(),
+            AstNode::DictLiteral(statement) => statement.string(),
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Program {
     pub statements: Vec<AstNode>,
 }

@@ -1,5 +1,11 @@
-use crate::ast::expressions::{Identifier, IfExpression};
-use crate::object::{Array, Function, Object, StringObject, ARRAY, STRING};
+use std::collections::HashMap;
+
+use serde::de::value;
+
+use crate::ast::expressions::{DictLiteral, Identifier, IfExpression};
+use crate::object::{
+    Array, Dict, Function, Object, StringObject, ARRAY, BUILTIN, DICT, FUNCTION, STRING,
+};
 
 use crate::{
     ast::{AstNode, Node},
@@ -131,6 +137,7 @@ impl Evaluator {
 
                 self.eval_index_expression(left, index)
             }
+            AstNode::DictLiteral(dict) => self.eval_hash_literal(dict),
             _ => panic!("Ast node not treated"),
         }
     }
@@ -255,6 +262,8 @@ impl Evaluator {
     fn eval_index_expression(&mut self, left: ObjectType, index: ObjectType) -> ObjectType {
         if left.object_type() == ARRAY && index.object_type() == INTEGER {
             self.eval_array_index_expression(left, index)
+        } else if (left.object_type() == DICT) {
+            self.eval_dictionary_index_expression(left, index)
         } else {
             new_error(format!(
                 "index operator not supported: {}",
@@ -406,6 +415,50 @@ impl Evaluator {
                 right.object_type()
             )),
         }
+    }
+
+    fn eval_hash_literal(&mut self, dict: DictLiteral) -> ObjectType {
+        let mut pairs = HashMap::new();
+
+        for (key_node, val_node) in dict.pairs.iter() {
+            let key = self.eval(key_node.clone());
+
+            if is_error(&key) {
+                return new_error(format!("unusable as hash key: {}", key.object_type()));
+            }
+
+            match key.object_type().as_str() {
+                FUNCTION | ERROR | ARRAY | BUILTIN | RETURN | DICT => {
+                    return new_error(format!("unusable as hash key: {}", key.object_type()))
+                }
+                _ => (),
+            }
+
+            let value = self.eval(val_node.clone());
+            if is_error(&value) {
+                return new_error(format!("unusable as hash key: {}", value.object_type()));
+            }
+
+            pairs.insert(key, value);
+        }
+
+        ObjectType::Dict(Dict { pairs })
+    }
+
+    fn eval_dictionary_index_expression(&self, left: ObjectType, index: ObjectType) -> ObjectType {
+        let dict = match left {
+            ObjectType::Dict(dic) => dic,
+            _ => panic!(),
+        };
+
+        match index.object_type().as_str() {
+            FUNCTION | ERROR | ARRAY | BUILTIN | RETURN | DICT => {
+                return new_error(format!("unusable as hash key: {}", index.object_type()))
+            }
+            _ => (),
+        }
+
+        dict.pairs.get(&index).unwrap_or(&ObjectType::Null).clone()
     }
 }
 fn new_error(message: String) -> ObjectType {

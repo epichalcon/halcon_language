@@ -1,6 +1,7 @@
 use self::environment::Environment;
 use crate::ast::{expressions::Identifier, statements::BlockStatement, Node};
-use std::{fmt::Debug, i128};
+use std::hash::Hash;
+use std::{collections::HashMap, fmt::Debug, i128};
 
 pub mod environment;
 
@@ -13,13 +14,14 @@ pub const FUNCTION: &str = "FUNCTION";
 pub const STRING: &str = "STRING";
 pub const BUILTIN: &str = "BUILTIN";
 pub const ARRAY: &str = "ARRAY";
+pub const DICT: &str = "DICT";
 
 pub trait Object: Debug {
     fn object_type(&self) -> String;
     fn inspect(&self) -> String;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ObjectType {
     Integer(Integer),
     Boolean(Boolean),
@@ -30,6 +32,7 @@ pub enum ObjectType {
     String(StringObject),
     Builtin(Builtin),
     Array(Array),
+    Dict(Dict),
 }
 
 impl Object for ObjectType {
@@ -44,6 +47,7 @@ impl Object for ObjectType {
             ObjectType::String(ty) => ty.object_type(),
             ObjectType::Builtin(ty) => ty.object_type(),
             ObjectType::Array(ty) => ty.object_type(),
+            ObjectType::Dict(ty) => ty.object_type(),
         }
     }
 
@@ -58,11 +62,12 @@ impl Object for ObjectType {
             ObjectType::String(ty) => ty.inspect(),
             ObjectType::Builtin(ty) => ty.inspect(),
             ObjectType::Array(ty) => ty.inspect(),
+            ObjectType::Dict(ty) => ty.inspect(),
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Integer {
     pub value: i128,
 }
@@ -77,7 +82,14 @@ impl Object for Integer {
     }
 }
 
-#[derive(Debug, Clone)]
+impl Hash for Integer {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.value.hash(state);
+        self.object_type().hash(state);
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Boolean {
     pub value: bool,
 }
@@ -92,7 +104,14 @@ impl Object for Boolean {
     }
 }
 
-#[derive(Debug, Clone)]
+impl Hash for Boolean {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.value.hash(state);
+        self.object_type().hash(state);
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Null {}
 
 impl Object for Null {
@@ -105,7 +124,13 @@ impl Object for Null {
     }
 }
 
-#[derive(Debug, Clone)]
+impl Hash for Null {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.object_type().hash(state);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StringObject {
     pub value: String,
 }
@@ -120,7 +145,14 @@ impl Object for StringObject {
     }
 }
 
-#[derive(Debug, Clone)]
+impl Hash for StringObject {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.value.hash(state);
+        self.object_type().hash(state);
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ReturnValue {
     pub value: Box<ObjectType>,
 }
@@ -135,7 +167,13 @@ impl Object for ReturnValue {
     }
 }
 
-#[derive(Debug, Clone)]
+impl Hash for ReturnValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.value.hash(state);
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Error {
     pub message: String,
 }
@@ -147,6 +185,12 @@ impl Object for Error {
 
     fn inspect(&self) -> String {
         format!("ERROR: {}", self.message)
+    }
+}
+
+impl Hash for Error {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        panic!("not able to hash errors")
     }
 }
 
@@ -179,9 +223,23 @@ impl Object for Function {
     }
 }
 
+impl PartialEq for Function {
+    fn eq(&self, other: &Self) -> bool {
+        self.parameters == other.parameters && self.body == other.body
+    }
+}
+
+impl Eq for Function {}
+
+impl Hash for Function {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        panic!("not able to hash functions")
+    }
+}
+
 pub type BuiltinFunction = fn(args: Vec<ObjectType>) -> ObjectType;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Builtin {
     pub function: BuiltinFunction,
 }
@@ -196,7 +254,13 @@ impl Object for Builtin {
     }
 }
 
-#[derive(Debug, Clone)]
+impl Hash for Builtin {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        panic!("not able to hash builtins")
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Array {
     pub elements: Vec<ObjectType>,
 }
@@ -220,5 +284,44 @@ impl Object for Array {
                 });
 
         format!("[{}]", elements)
+    }
+}
+
+impl Hash for Array {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        panic!("not able to hash Arrays")
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct Dict {
+    pub pairs: HashMap<ObjectType, ObjectType>,
+}
+
+impl Object for Dict {
+    fn object_type(&self) -> String {
+        return DICT.to_string();
+    }
+
+    fn inspect(&self) -> String {
+        let pairs = self
+            .pairs
+            .iter()
+            .enumerate()
+            .fold(String::new(), |acc, (i, (key, val))| {
+                if i < self.pairs.len() - 1 {
+                    format!("{acc}{}: {}, ", key.inspect(), val.inspect())
+                } else {
+                    format!("{acc}{}: {}", key.inspect(), val.inspect())
+                }
+            });
+
+        format!("{{{}}}", pairs)
+    }
+}
+
+impl Hash for Dict {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        panic!("not able to hash dictionarys")
     }
 }

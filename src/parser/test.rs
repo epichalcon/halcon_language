@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use serde::de::value;
+
 use crate::ast::{statements::LetStatement, Node};
 
 use super::*;
@@ -453,6 +457,107 @@ fn test_parsing_index_expreson() {
 
     test_identifier(&index_expression.left, "myArray");
     test_infix_expression(&index_expression.index, "1", "+", "1");
+}
+
+#[test]
+fn test_parsing_hash_literals_string_keys() {
+    let input = r#"{"one": 1, "two": 2, "three": 3}"#;
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let binding = parser.parse_program();
+    let program = get_program(&binding);
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+    let exp = get_expression_statement(&program.statements[0]);
+
+    let dictionary_expression = match *exp.expression.clone() {
+        AstNode::DictLiteral(if_expression) => if_expression,
+        actual => panic!("Expected an index expression, got {:?}", actual),
+    };
+
+    assert_eq!(3, dictionary_expression.pairs.len());
+
+    let mut expected: HashMap<String, i128> = HashMap::new();
+    expected.insert("one".to_string(), 1);
+    expected.insert("two".to_string(), 2);
+    expected.insert("three".to_string(), 3);
+
+    for (key, val) in dictionary_expression.pairs.iter() {
+        let literal = match key {
+            AstNode::StringLiteral(id) => id.string(),
+            actual => panic!("Expected a string literal expression, got {:?}", actual),
+        };
+
+        let expected_value = expected.get(&literal).unwrap();
+
+        test_int_literal(val, &expected_value.to_string());
+    }
+}
+
+#[test]
+fn test_parsing_empty_dict() {
+    let input = r#"{}"#;
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let binding = parser.parse_program();
+    let program = get_program(&binding);
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+    let exp = get_expression_statement(&program.statements[0]);
+
+    let dictionary_expression = match *exp.expression.clone() {
+        AstNode::DictLiteral(if_expression) => if_expression,
+        actual => panic!("Expected an index expression, got {:?}", actual),
+    };
+
+    assert_eq!(0, dictionary_expression.pairs.len());
+}
+
+#[test]
+fn test_parsing_expression_dict() {
+    let input = r#"{"one": 0 + 1, "two": 10 - 8, "three": 15 / 5}"#;
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let binding = parser.parse_program();
+    let program = get_program(&binding);
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+    let exp = get_expression_statement(&program.statements[0]);
+
+    let dictionary_expression = match *exp.expression.clone() {
+        AstNode::DictLiteral(if_expression) => if_expression,
+        actual => panic!("Expected an index expression, got {:?}", actual),
+    };
+
+    assert_eq!(3, dictionary_expression.pairs.len());
+
+    let mut expected: HashMap<String, fn(AstNode)> = HashMap::new();
+    expected.insert("one".to_string(), |e| {
+        test_infix_expression(&e, "0", "+", "1")
+    });
+    expected.insert("two".to_string(), |e| {
+        test_infix_expression(&e, "10", "-", "8")
+    });
+    expected.insert("three".to_string(), |e| {
+        test_infix_expression(&e, "15", "/", "5")
+    });
+
+    for (key, val) in dictionary_expression.pairs.iter() {
+        let literal = match key {
+            AstNode::StringLiteral(id) => id.string(),
+            actual => panic!("Expected a string literal expression, got {:?}", actual),
+        };
+
+        let test_funct = expected.get(&literal).unwrap();
+
+        test_funct(val.clone())
+    }
 }
 
 //-------------------[Test helpers]-------------------//

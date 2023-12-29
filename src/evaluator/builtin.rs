@@ -8,6 +8,9 @@ pub fn get_builtin_function(id: &str) -> ObjectType {
         "last" => ObjectType::Builtin(Builtin { function: last }),
         "rest" => ObjectType::Builtin(Builtin { function: rest }),
         "push" => ObjectType::Builtin(Builtin { function: push }),
+        "print" => ObjectType::Builtin(Builtin {
+            function: printsout,
+        }),
         _ => return new_error(format!("identifier not found: {}", id)),
     }
 }
@@ -141,15 +144,6 @@ fn push(args: Vec<ObjectType>) -> ObjectType {
     }
 
     match &args[0] {
-        // ObjectType::String(s) => {
-        //     if s.value.len() > 0 {
-        //         ObjectType::String(StringObject {
-        //             value: format!("{}{}", s.value, args[1].),
-        //         })
-        //     } else {
-        //         ObjectType::Null
-        //     }
-        // }
         ObjectType::Array(a) => {
             let mut new_arr = a.elements.clone();
             new_arr.push(args[1].clone());
@@ -160,4 +154,11 @@ fn push(args: Vec<ObjectType>) -> ObjectType {
             args[0].object_type()
         )),
     }
+}
+
+fn printsout(args: Vec<ObjectType>) -> ObjectType {
+    for arg in args {
+        println!("{:?}", arg.inspect());
+    }
+    ObjectType::Null
 }
