@@ -189,7 +189,7 @@ impl Object for Error {
 }
 
 impl Hash for Error {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {
         panic!("not able to hash errors")
     }
 }
@@ -232,7 +232,7 @@ impl PartialEq for Function {
 impl Eq for Function {}
 
 impl Hash for Function {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {
         panic!("not able to hash functions")
     }
 }
@@ -255,7 +255,7 @@ impl Object for Builtin {
 }
 
 impl Hash for Builtin {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {
         panic!("not able to hash builtins")
     }
 }
@@ -288,7 +288,7 @@ impl Object for Array {
 }
 
 impl Hash for Array {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {
         panic!("not able to hash Arrays")
     }
 }
@@ -321,7 +321,7 @@ impl Object for Dict {
 }
 
 impl Hash for Dict {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {
         panic!("not able to hash dictionarys")
     }
 }

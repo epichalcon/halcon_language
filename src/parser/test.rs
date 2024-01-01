@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use serde::de::value;
-
 use crate::ast::{statements::LetStatement, Node};
 
 use super::*;
@@ -90,9 +88,7 @@ fn test_identifier_expression() {
 
     assert_eq!(1, program.statements.len());
 
-    let exp = get_expression_statement(&program.statements[0]);
-
-    test_identifier(&exp.expression, "foobar");
+    test_identifier(&program.statements[0], "foobar");
 }
 
 #[test]
@@ -108,9 +104,9 @@ fn test_integer_literal_expression() {
 
     assert_eq!(1, program.statements.len());
 
-    let exp = get_expression_statement(&program.statements[0]);
+    let exp = &program.statements[0];
 
-    test_int_literal(&exp.expression, "5");
+    test_int_literal(&exp, "5");
 }
 
 #[test]
@@ -127,9 +123,9 @@ fn test_boolean_literal_expression() {
 
         assert_eq!(1, program.statements.len());
 
-        let exp = get_expression_statement(&program.statements[0]);
+        let exp = &program.statements[0];
 
-        test_boolean(&exp.expression, expected);
+        test_boolean(&exp, expected);
     }
 }
 
@@ -150,9 +146,9 @@ fn test_parse_prefix_expressions() {
 
         assert_eq!(1, program.statements.len());
 
-        let exp = get_expression_statement(&program.statements[0]);
+        let exp = &program.statements[0];
 
-        test_prefix_expression(&exp.expression, operator, right_expected);
+        test_prefix_expression(&exp, operator, right_expected);
     }
 }
 
@@ -182,9 +178,9 @@ fn test_parse_infix_expressions() {
 
         assert_eq!(1, program.statements.len());
 
-        let exp = get_expression_statement(&program.statements[0]);
+        let exp = &program.statements[0];
 
-        test_infix_expression(&exp.expression, left_expected, operator, right_expected);
+        test_infix_expression(&exp, left_expected, operator, right_expected);
     }
 }
 
@@ -256,9 +252,9 @@ fn test_if_expression() {
     check_parse_errors(parser);
     assert_eq!(1, program.statements.len());
 
-    let exp = get_expression_statement(&program.statements[0]);
+    let exp = &program.statements[0];
 
-    let if_expression = match *exp.expression.clone() {
+    let if_expression = match exp.clone() {
         AstNode::IfExpression(if_expression) => if_expression,
         actual => panic!("Expected an if expression, got {:?}", actual),
     };
@@ -267,9 +263,9 @@ fn test_if_expression() {
 
     assert_eq!(1, if_expression.consequence.statements.len());
 
-    let consequence = get_expression_statement(&if_expression.consequence.statements[0]);
+    let consequence = &if_expression.consequence.statements[0];
 
-    test_identifier(&consequence.expression, "x")
+    test_identifier(&consequence, "x")
 }
 
 #[test]
@@ -284,9 +280,9 @@ fn test_if_else_expression() {
     check_parse_errors(parser);
     assert_eq!(1, program.statements.len());
 
-    let exp = get_expression_statement(&program.statements[0]);
+    let exp = &program.statements[0];
 
-    let if_expression = match *exp.expression.clone() {
+    let if_expression = match exp.clone() {
         AstNode::IfExpression(if_expression) => if_expression,
         actual => panic!("Expected an if expression, got {:?}", actual),
     };
@@ -295,9 +291,9 @@ fn test_if_else_expression() {
 
     assert_eq!(1, if_expression.consequence.statements.len());
 
-    let consequence = get_expression_statement(&if_expression.consequence.statements[0]);
+    let consequence = &if_expression.consequence.statements[0];
 
-    test_identifier(&consequence.expression, "x");
+    test_identifier(&consequence, "x");
 
     let alternative_block = match &if_expression.alternative {
         Some(alt) => alt,
@@ -306,9 +302,9 @@ fn test_if_else_expression() {
 
     assert_eq!(1, alternative_block.statements.len());
 
-    let alternative = get_expression_statement(&alternative_block.statements[0]);
+    let alternative = &alternative_block.statements[0];
 
-    test_identifier(&alternative.expression, "y")
+    test_identifier(&alternative, "y")
 }
 
 #[test]
@@ -323,9 +319,9 @@ fn test_function_literal_parsing() {
     check_parse_errors(parser);
     assert_eq!(1, program.statements.len());
 
-    let exp = get_expression_statement(&program.statements[0]);
+    let exp = &program.statements[0];
 
-    let function = match *exp.expression.clone() {
+    let function = match exp.clone() {
         AstNode::FunctionLiteral(if_expression) => if_expression,
         actual => panic!("Expected a function literal, got {:?}", actual),
     };
@@ -337,9 +333,9 @@ fn test_function_literal_parsing() {
 
     assert_eq!(1, function.body.statements.len());
 
-    let exp = get_expression_statement(&function.body.statements[0]);
+    let exp = &function.body.statements[0];
 
-    test_infix_expression(&exp.expression, "x", "+", "y");
+    test_infix_expression(&exp, "x", "+", "y");
 }
 
 #[test]
@@ -358,9 +354,9 @@ fn test_function_parameter_parsing() {
 
         check_parse_errors(parser);
 
-        let exp = get_expression_statement(&program.statements[0]);
+        let exp = &program.statements[0];
 
-        let function = match *exp.expression.clone() {
+        let function = match exp {
             AstNode::FunctionLiteral(if_expression) => if_expression,
             actual => panic!("Expected a function literal, got {:?}", actual),
         };
@@ -385,9 +381,9 @@ fn test_call_expresion_parsing() {
     check_parse_errors(parser);
     assert_eq!(1, program.statements.len());
 
-    let exp = get_expression_statement(&program.statements[0]);
+    let exp = &program.statements[0];
 
-    let exp = match *exp.expression.clone() {
+    let exp = match exp.clone() {
         AstNode::CallExpression(if_expression) => if_expression,
         actual => panic!("Expected a call expression, got {:?}", actual),
     };
@@ -411,9 +407,9 @@ fn test_string_literal_expression() {
     check_parse_errors(parser);
     assert_eq!(1, program.statements.len());
 
-    let exp = get_expression_statement(&program.statements[0]);
+    let exp = &program.statements[0];
 
-    test_string_literal(&exp.expression, "hello world")
+    test_string_literal(&exp, "hello world")
 }
 
 #[test]
@@ -428,9 +424,9 @@ fn test_parse_array() {
     check_parse_errors(parser);
     assert_eq!(1, program.statements.len());
 
-    let exp = get_expression_statement(&program.statements[0]);
+    let exp = &program.statements[0];
 
-    let elem = test_array(&exp.expression, 3);
+    let elem = test_array(&exp, 3);
 
     test_int_literal(&elem[0], "1");
     test_infix_expression(&elem[1], "2", "*", "2");
@@ -448,9 +444,9 @@ fn test_parsing_index_expreson() {
 
     check_parse_errors(parser);
     assert_eq!(1, program.statements.len());
-    let exp = get_expression_statement(&program.statements[0]);
+    let exp = &program.statements[0];
 
-    let index_expression = match *exp.expression.clone() {
+    let index_expression = match exp.clone() {
         AstNode::IndexExpression(if_expression) => if_expression,
         actual => panic!("Expected an index expression, got {:?}", actual),
     };
@@ -470,9 +466,9 @@ fn test_parsing_hash_literals_string_keys() {
 
     check_parse_errors(parser);
     assert_eq!(1, program.statements.len());
-    let exp = get_expression_statement(&program.statements[0]);
+    let exp = &program.statements[0];
 
-    let dictionary_expression = match *exp.expression.clone() {
+    let dictionary_expression = match exp.clone() {
         AstNode::DictLiteral(if_expression) => if_expression,
         actual => panic!("Expected an index expression, got {:?}", actual),
     };
@@ -507,9 +503,9 @@ fn test_parsing_empty_dict() {
 
     check_parse_errors(parser);
     assert_eq!(1, program.statements.len());
-    let exp = get_expression_statement(&program.statements[0]);
+    let exp = &program.statements[0];
 
-    let dictionary_expression = match *exp.expression.clone() {
+    let dictionary_expression = match exp.clone() {
         AstNode::DictLiteral(if_expression) => if_expression,
         actual => panic!("Expected an index expression, got {:?}", actual),
     };
@@ -528,9 +524,9 @@ fn test_parsing_expression_dict() {
 
     check_parse_errors(parser);
     assert_eq!(1, program.statements.len());
-    let exp = get_expression_statement(&program.statements[0]);
+    let exp = &program.statements[0];
 
-    let dictionary_expression = match *exp.expression.clone() {
+    let dictionary_expression = match exp.clone() {
         AstNode::DictLiteral(if_expression) => if_expression,
         actual => panic!("Expected an index expression, got {:?}", actual),
     };
@@ -579,12 +575,6 @@ fn get_program(program: &AstNode) -> &Program {
     }
 }
 
-fn get_expression_statement(statement: &AstNode) -> &ExpressionStatement {
-    match statement {
-        AstNode::ExpressionStatement(exp) => exp,
-        actual => panic!("Expected an expression statement, got {:?}", actual),
-    }
-}
 
 fn test_identifier(exp: &AstNode, expected: &str) {
     match exp {

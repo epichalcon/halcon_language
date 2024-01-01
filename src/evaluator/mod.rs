@@ -20,26 +20,67 @@ mod builtin;
 #[cfg(test)]
 mod test;
 
+/// The evaluator struct is the responsable of evaluating the parsed program
 pub struct Evaluator {
+    /// the `env` variable holds the active environment of the program
     pub env: Environment,
 }
 
+#[allow(unreachable_patterns)]
 impl Evaluator {
+    /**
+    Returns an Evaluator
+
+    # Arguments
+
+    # Examples
+    ```
+    let mut evaluator = Evaluator::new();
+    ```
+    */
     pub fn new() -> Self {
         Self {
             env: Environment::new(),
         }
     }
 
+    /**
+    Returns an Evaluator  with the specified `Environment`
+
+    # Arguments
+    * `env` - the `Environment` to be used
+
+    # Examples
+    ```
+    let mut env = Environment::new();
+    let mut evaluator = Evaluator::new_env(env);
+    ```
+    */
     pub fn new_env(env: Environment) -> Self {
         Self { env }
     }
 
+    /**
+    Returns the `ObjectType` of the processed `AstNode`. The function will call the coresponding functions for each type of `AstNode`
+
+    # Arguments
+    * `node` - the `AstNode` to parse
+
+    # Examples
+    ```
+    let lex = Lexer::new(scanned);
+    let mut pars = Parser::new(lex);
+
+    let program = pars.parse_program();
+
+    let mut evaluator = Evaluator::new();
+    let evaluated = evaluator.eval(program);
+    ```
+    */
     pub fn eval(&mut self, node: AstNode) -> ObjectType {
         match node {
-            AstNode::Program(program) => self.eval_program(program.statements),
-            AstNode::ExpressionStatement(expression) => self.eval(*expression.expression),
             AstNode::BlockStatement(expressions) => self.eval_statements(expressions.statements),
+            AstNode::Program(program) => self.eval_program(program.statements),
 
             AstNode::PrefixExpression(prefix_expression) => {
                 let right = self.eval(*prefix_expression.right);
@@ -74,7 +115,7 @@ impl Evaluator {
                 if is_error(&function) {
                     return function;
                 }
-                let args = self.eval_expressions(call.arguments.clone());
+                let args = self.eval_list_expressions(call.arguments.clone());
                 if args.len() == 1 && is_error(&args[0]) {
                     return args[0].clone();
                 }
@@ -122,7 +163,7 @@ impl Evaluator {
                 },
             }),
             AstNode::ArrayLiteral(array_literal) => {
-                let elements = self.eval_expressions(array_literal.elements);
+                let elements = self.eval_list_expressions(array_literal.elements);
                 if elements.len() == 1 && is_error(&elements[0]) {
                     elements[0].clone()
                 } else {
@@ -141,11 +182,18 @@ impl Evaluator {
 
                 self.eval_index_expression(left, index)
             }
-            AstNode::DictLiteral(dict) => self.eval_hash_literal(dict),
+            AstNode::DictLiteral(dict) => self.eval_dict_literal(dict),
             _ => panic!("Ast node not treated"),
         }
     }
 
+    /**
+    Evaluates every statement in the program and returns the `ObjectType` of the last statement,
+    of the return statement (unpacking the contents) or an ObjectType::Error if an error has occured.
+
+    # Arguments
+    * `statements` - The list of statements to evaluate
+    */
     fn eval_program(&mut self, statements: Vec<AstNode>) -> ObjectType {
         let mut result = None;
 
@@ -168,6 +216,13 @@ impl Evaluator {
         }
     }
 
+    /**
+    Evaluates every statement in a list of statements and returns the `ObjectType` of the last statement,
+    of the return statement or an ObjectType::Error if an error has occured.
+
+    # Arguments
+    * `statements` - The list of statements to evaluate
+    */
     fn eval_statements(&mut self, statements: Vec<AstNode>) -> ObjectType {
         let mut result = None;
 
@@ -186,6 +241,15 @@ impl Evaluator {
         }
     }
 
+    /**
+    Evaluates a prefix operator expression and returns the result. This includes:
+    * not
+    * minus
+
+    # Arguments
+    * `operator` - the prefix operator to parse
+    * `right` - the Object to apply the operator
+    */
     fn eval_prefix_expression(&mut self, operator: String, right: ObjectType) -> ObjectType {
         match operator.as_str() {
             "not" => self.eval_not_operator(right),
@@ -198,6 +262,16 @@ impl Evaluator {
         }
     }
 
+    /**
+    Evaluates an infix operator expression and returns the result. This includes:
+    * boolean operatorions -> true == true
+    * numerical operations -> 1 + 3
+
+    # Arguments
+    * `left` - the left Object to apply the operator
+    * `operator` - the prefix operator to parse
+    * `right` - the right Object to apply the operator
+    */
     fn eval_infix_expression(
         &mut self,
         left: ObjectType,
@@ -233,6 +307,12 @@ impl Evaluator {
         }
     }
 
+    /**
+    Evaluates an if else expression returns the result.
+
+    # Arguments
+    * `if_expression` - the if expression to parse
+    */
     fn eval_if_expression(&mut self, if_expression: IfExpression) -> ObjectType {
         let condition = self.eval(*if_expression.condition);
         if is_error(&condition) {
@@ -248,10 +328,16 @@ impl Evaluator {
         }
     }
 
-    fn eval_expressions(&mut self, arguments: Vec<AstNode>) -> Vec<ObjectType> {
+    /**
+    Evaluates a list of expressions (as the ones found in Arrays) and returns the results in a `Vec<ObjectType>`
+
+    # Arguments
+    * `expressions` - the expressions to evaluate
+    */
+    fn eval_list_expressions(&mut self, expressions: Vec<AstNode>) -> Vec<ObjectType> {
         let mut result = vec![];
 
-        for argument in arguments {
+        for argument in expressions {
             let evaluated = self.eval(argument);
             if is_error(&evaluated) {
                 return vec![evaluated];
@@ -259,10 +345,16 @@ impl Evaluator {
 
             result.push(evaluated)
         }
-
         result
     }
 
+    /**
+    Evaluates an index expressionand returns the result
+
+    # Arguments
+    * `left` - the Object to index
+    * `index` - the index to apply
+    */
     fn eval_index_expression(&mut self, left: ObjectType, index: ObjectType) -> ObjectType {
         if left.object_type() == ARRAY && index.object_type() == INTEGER {
             self.eval_array_index_expression(left, index)
@@ -276,6 +368,47 @@ impl Evaluator {
         }
     }
 
+    /**
+    Evaluates the dict literal. If an unhashable key is used an `ObjectType::Error` is returned
+
+    # Arguments
+    * `dict` - the dictionary to evaluate
+    */
+    fn eval_dict_literal(&mut self, dict: DictLiteral) -> ObjectType {
+        let mut pairs = HashMap::new();
+
+        for (key_node, val_node) in dict.pairs.iter() {
+            let key = self.eval(key_node.clone());
+
+            if is_error(&key) {
+                return new_error(format!("unusable as hash key: {}", key.object_type()));
+            }
+
+            match key.object_type().as_str() {
+                FUNCTION | ERROR | ARRAY | BUILTIN | RETURN | DICT => {
+                    return new_error(format!("unusable as hash key: {}", key.object_type()))
+                }
+                _ => (),
+            }
+
+            let value = self.eval(val_node.clone());
+            if is_error(&value) {
+                return new_error(format!("unusable as hash key: {}", value.object_type()));
+            }
+
+            pairs.insert(key, value);
+        }
+
+        ObjectType::Dict(Dict { pairs })
+    }
+
+    /**
+    Evaluates an array index expressionand returns the result
+
+    # Arguments
+    * `left` - the Array to index
+    * `index` - the index to apply
+    */
     fn eval_array_index_expression(&self, arr: ObjectType, index: ObjectType) -> ObjectType {
         let array = match arr {
             ObjectType::Array(array) => array,
@@ -298,6 +431,37 @@ impl Evaluator {
         array.elements[idx as usize].clone()
     }
 
+    /**
+    Evaluates an dictionary index expressionand returns the result
+
+    # Arguments
+    * `left` - the dictionary to index
+    * `index` - the index to apply
+    */
+    fn eval_dictionary_index_expression(&self, left: ObjectType, index: ObjectType) -> ObjectType {
+        let dict = match left {
+            ObjectType::Dict(dic) => dic,
+            _ => panic!(),
+        };
+
+        match index.object_type().as_str() {
+            FUNCTION | ERROR | ARRAY | BUILTIN | RETURN | DICT => {
+                return new_error(format!("unusable as hash key: {}", index.object_type()))
+            }
+            _ => (),
+        }
+
+        dict.pairs.get(&index).unwrap_or(&ObjectType::Null).clone()
+    }
+
+    /**
+    Executes the call to a function, either user defined or built in, and returns the result.
+    the environment of the function will be updated with the current active environment
+
+    # Arguments
+    * `fun` - the function to call
+    * `args` - the arguments to pass to the function
+    */
     fn apply_function(&mut self, fun: ObjectType, args: Vec<ObjectType>) -> ObjectType {
         match fun {
             ObjectType::Function(mut function) => {
@@ -318,6 +482,14 @@ impl Evaluator {
         }
     }
 
+    /**
+    Returns a new `Environment` with the functions environment as the outer environment and the paramenters
+    as the inner environment
+
+    # Arguments
+    * `function` - the functions with the `Environment` to extend
+    * `args` - the arguments to include in the new `Environment`
+    */
     fn extended_function_env(&self, function: Function, args: Vec<ObjectType>) -> Environment {
         let mut env = Environment::new_enclosed_environment(&function.env);
 
@@ -328,6 +500,13 @@ impl Evaluator {
         return env;
     }
 
+    /**
+    Searches an identifier in the active `Environment` and returns the result
+    or returns an `ObjectType::Builtin` if the identifier is a builtin function
+
+    # Arguments
+    * `id` - the id to evaluate
+    */
     fn eval_identifier(&mut self, id: Identifier) -> ObjectType {
         match self.env.get(id.token_literal()) {
             Some(obj) => return obj.clone(),
@@ -337,27 +516,40 @@ impl Evaluator {
         get_builtin_function(id.token_literal().as_str())
     }
 
+    /**
+    Evaluates a not operator, negating the truthiness of the value
+
+    # Arguments
+    * `right` - the object to negate
+    */
     fn eval_not_operator(&self, right: ObjectType) -> ObjectType {
-        match right.object_type().as_str() {
-            BOOLEAN => match right.inspect().as_str() {
-                "true" => ObjectType::Boolean(Boolean { value: false }),
-                "false" => ObjectType::Boolean(Boolean { value: true }),
-                _ => panic!("Boolean incorrectly formed"),
-            },
-            NULL => ObjectType::Boolean(Boolean { value: true }),
-            _ => ObjectType::Boolean(Boolean { value: false }),
-        }
+        ObjectType::Boolean(Boolean {
+            value: !is_truthy(right),
+        })
     }
 
+    /**
+    Evaluates a minus prefix operator. If the `ObjectType` is not an Integer, an `ObjectType:Error` will be returned
+
+    # Arguments
+    * `right` - the object to apply
+    */
     fn eval_minus_prefix_operator(&self, right: ObjectType) -> ObjectType {
-        if right.object_type() != INTEGER {
-            return new_error(format!("unknown operator: -{}", right.object_type()));
-        }
+        match right {
+            ObjectType::Integer(int) => ObjectType::Integer(Integer { value: -int.value }),
 
-        let value: i128 = right.inspect().parse().unwrap();
-        ObjectType::Integer(Integer { value: -value })
+            other => new_error(format!("unknown operator: -{}", other.object_type())),
+        }
     }
 
+    /**
+    Evaluates the infix integers operators. If the operator is not supported an `ObjectType::Error` is returned
+
+    # Arguments
+    * `right` - the right `ObjectType` to evaluate
+    * `operator` - the operator to evaluate
+    * `left` - the left `ObjectType` to evaluate
+    */
     fn eval_infix_integer_expression(
         &self,
         left: ObjectType,
@@ -400,6 +592,14 @@ impl Evaluator {
         }
     }
 
+    /**
+    Evaluates the infix string expressions. If the operator is not supported an `ObjectType::Error` is returned
+
+    # Arguments
+    * `right` - the right `ObjectType` to evaluate
+    * `operator` - the operator to evaluate
+    * `left` - the left `ObjectType` to evaluate
+    */
     fn eval_infix_string_expression(
         &self,
         left: ObjectType,
@@ -420,73 +620,51 @@ impl Evaluator {
             )),
         }
     }
-
-    fn eval_hash_literal(&mut self, dict: DictLiteral) -> ObjectType {
-        let mut pairs = HashMap::new();
-
-        for (key_node, val_node) in dict.pairs.iter() {
-            let key = self.eval(key_node.clone());
-
-            if is_error(&key) {
-                return new_error(format!("unusable as hash key: {}", key.object_type()));
-            }
-
-            match key.object_type().as_str() {
-                FUNCTION | ERROR | ARRAY | BUILTIN | RETURN | DICT => {
-                    return new_error(format!("unusable as hash key: {}", key.object_type()))
-                }
-                _ => (),
-            }
-
-            let value = self.eval(val_node.clone());
-            if is_error(&value) {
-                return new_error(format!("unusable as hash key: {}", value.object_type()));
-            }
-
-            pairs.insert(key, value);
-        }
-
-        ObjectType::Dict(Dict { pairs })
-    }
-
-    fn eval_dictionary_index_expression(&self, left: ObjectType, index: ObjectType) -> ObjectType {
-        let dict = match left {
-            ObjectType::Dict(dic) => dic,
-            _ => panic!(),
-        };
-
-        match index.object_type().as_str() {
-            FUNCTION | ERROR | ARRAY | BUILTIN | RETURN | DICT => {
-                return new_error(format!("unusable as hash key: {}", index.object_type()))
-            }
-            _ => (),
-        }
-
-        dict.pairs.get(&index).unwrap_or(&ObjectType::Null).clone()
-    }
 }
+
+/**
+Returns an `ObjectType::Error` with the specified message
+
+# Arguments
+* `message` - the error message
+*/
 fn new_error(message: String) -> ObjectType {
     ObjectType::Error(Error { message })
 }
 
+
+/**
+Returns if an object is truthy. The results are the following
+- true -> truthy
+- false -> not truthy
+- Null -> not truthy
+- other objects -> truthy
+
+# Arguments
+* `condition` - the `ObjectType` to evaluate
+*/
 fn is_truthy(condition: ObjectType) -> bool {
-    match condition.object_type().as_str() {
-        BOOLEAN => {
-            if condition.inspect() == "true" {
-                true
-            } else {
-                false
-            }
-        }
-        NULL => false,
+    match condition {
+        ObjectType::Boolean(boolean) => boolean.value,
+        ObjectType::Null => false,
         _ => true,
     }
 }
 
+/**
+Returns if an `ObjectType` is an error
+# Arguments
+* `obj` - the `ObjectType` to evaluate
+*/
 fn is_error(obj: &ObjectType) -> bool {
     obj.object_type() == ERROR
 }
 
+/**
+Returns the inner object of an `ObjectType::Return`
+# Arguments
+* `obj` - the `ObjectType` to evaluate
+*/
 fn unwrap_return_value(evaluated: ObjectType) -> ObjectType {
     match evaluated {
         ObjectType::Return(return_value) => *return_value.value,

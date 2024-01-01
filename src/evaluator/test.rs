@@ -488,7 +488,7 @@ fn test_eval(input: &str) -> ObjectType {
     let mut par = Parser::new(Lexer::new(input.to_string()));
     let pro = par.parse_program();
 
-    let mut evaluator = Evaluator::new(Environment::new());
+    let mut evaluator = Evaluator::new_env(Environment::new());
 
     evaluator.eval(pro)
 }

@@ -1,4 +1,6 @@
 use crate::token::Token;
+#[cfg(test)]
+mod test;
 
 trait Letter {
     fn is_letter(self) -> bool;
@@ -9,14 +11,34 @@ impl Letter for u8 {
         self.is_ascii_alphabetic() || self == b'_'
     }
 }
+
+/// The lexer struct is the responsable from taking a string and dividing it into tokens
 pub struct Lexer {
+    /// The inputed string is transformed into a `Vec<u8>` and is iterated through
     input: Vec<u8>,
+    /// The actual position of the pointer in the input
     position: usize,
+    /// The next position of the pointer in the input used to observe the next character without
+    /// moving the pointer
     read_position: usize,
+    /// The actual character
     ch: u8,
 }
 
 impl Lexer {
+    /**
+    Returns a Lexer with the input with the `String` given
+
+    # Arguments
+
+    * `input` - the `String` that will be tokenized
+
+    # Examples 
+    ```
+    let lex = Lexer::new(contents);
+
+    ```
+    */
     pub fn new(input: String) -> Self {
         let mut lexer = Lexer {
             input: input.into_bytes(),
@@ -29,6 +51,16 @@ impl Lexer {
         lexer
     }
 
+
+    /**
+    The character pointed to by `self.position` is loaded in `self.ch` and both pointers are moved forward
+    If the pointer is out of bounds the null character is loaded
+
+    # Arguments
+
+    no arguments
+
+    */
     fn read_char(&mut self) {
         if self.read_position >= self.input.len() {
             self.ch = 0;
@@ -40,6 +72,20 @@ impl Lexer {
         self.read_position += 1;
     }
 
+    /**
+    Returns the next `Token` detected from the input moving the pointer to the character in front of the last token read
+
+    # Arguments
+
+    no arguments
+
+    # Examples 
+    ```
+    let lexer = Lexer::new(contents);
+
+    let new_token = lexer.next_token();
+    ```
+    */
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
@@ -164,6 +210,19 @@ impl Lexer {
         token
     }
 
+
+    /**
+    When a word is detected the function will read the word and return a `String` with the content
+
+    # Arguments
+
+    no arguments
+    ```
+    if ch.is_letter() {
+        let id = self.read_identifier();
+    }
+    ```
+    */
     fn read_identifier(&mut self) -> String {
         let position = self.position;
 
@@ -174,6 +233,19 @@ impl Lexer {
         String::from_utf8_lossy(&self.input[position..self.position]).to_string()
     }
 
+
+    /**
+    When a digit is detected the function will read the number and return a `i128` with the content
+
+    # Arguments
+
+    no arguments
+    ```
+    if ch.is_digit() {
+        let id = self.read_number();
+    }
+    ```
+    */
     fn read_number(&mut self) -> i128 {
         let position = self.position;
 
@@ -187,19 +259,19 @@ impl Lexer {
             .expect("Not a  valid number, numbers must be i128")
     }
 
-    fn skip_whitespace(&mut self) {
-        while self.ch.is_ascii_whitespace() {
-            self.read_char()
-        }
-    }
 
-    fn peek_char(&mut self) -> u8 {
-        if self.read_position >= self.input.len() {
-            0
-        } else {
-            self.input[self.read_position]
-        }
+    /**
+    When a string is detected the function will read the string and return a `String` with the content
+
+    # Arguments
+
+    no arguments
+    ```
+    if ch == b'"' {
+        let string = self.read_string();
     }
+    ```
+    */
 
     fn read_string(&mut self) -> String {
         self.read_char();
@@ -211,248 +283,40 @@ impl Lexer {
 
         String::from_utf8_lossy(&self.input[position..self.position]).to_string()
     }
+
+    /**
+    The pointer will move to the next non white space character
+
+    # Arguments
+
+    no arguments
+    */
+    fn skip_whitespace(&mut self) {
+        while self.ch.is_ascii_whitespace() {
+            self.read_char()
+        }
+    }
+
+    /**
+    Returns the character pointed by `self.read_position` in u8 form 
+    If the 'self.read_position' is out of bounds, the function returns the null character
+
+    # Arguments
+
+    no arguments
+    ```
+    if self.peek_char() == b'=' {
+        self.read_char();
+    } 
+    ```
+    */
+    fn peek_char(&mut self) -> u8 {
+        if self.read_position >= self.input.len() {
+            0
+        } else {
+            self.input[self.read_position]
+        }
+    }
+
 }
 
-#[cfg(test)]
-mod test {
-
-    use super::*;
-
-    #[test]
-    fn test_next_token() {
-        let input = "=+()[]{},;";
-
-        let expected = vec![
-            Token::Assig,
-            Token::Plus,
-            Token::Opar,
-            Token::Cpar,
-            Token::Obrac,
-            Token::Cbrac,
-            Token::Okey,
-            Token::Ckey,
-            Token::Coma,
-            Token::Semicolon,
-            Token::Eof,
-        ];
-
-        let mut lexer = Lexer::new(input.to_string());
-
-        for (i, token) in expected.iter().enumerate() {
-            let new_token = lexer.next_token();
-            println!("Test {i} expected: {token}, got: {new_token}");
-            assert_eq!(*token, new_token);
-        }
-    }
-
-    #[test]
-    fn test_source_code_first_subset() {
-        let input = r#"let five: int = 5;
-        let ten: int = 10;
-        let hello: str = "hello world";
-        let array: arr = [1, 2];
-        let my_bool: bool = true;
-        
-        let add = fun(x,y) -> int {
-            x + y;
-        }
-
-        let result = add(five, ten);"#;
-
-        let expected = vec![
-            Token::Let,
-            Token::Id("five".to_string()),
-            Token::Colon,
-            Token::Int,
-            Token::Assig,
-            Token::ConstInt(5),
-            Token::Semicolon,
-            Token::Let,
-            Token::Id("ten".to_string()),
-            Token::Colon,
-            Token::Int,
-            Token::Assig,
-            Token::ConstInt(10),
-            Token::Semicolon,
-            Token::Let,
-            Token::Id("hello".to_string()),
-            Token::Colon,
-            Token::Str,
-            Token::Assig,
-            Token::ConstStr("hello world".to_string()),
-            Token::Semicolon,
-            Token::Let,
-            Token::Id("array".to_string()),
-            Token::Colon,
-            Token::Arr,
-            Token::Assig,
-            Token::Obrac,
-            Token::ConstInt(1),
-            Token::Coma,
-            Token::ConstInt(2),
-            Token::Cbrac,
-            Token::Semicolon,
-            Token::Let,
-            Token::Id("my_bool".to_string()),
-            Token::Colon,
-            Token::Bool,
-            Token::Assig,
-            Token::ConstBool(true),
-            Token::Semicolon,
-            Token::Let,
-            Token::Id("add".to_string()),
-            Token::Assig,
-            Token::Fun,
-            Token::Opar,
-            Token::Id("x".to_string()),
-            Token::Coma,
-            Token::Id("y".to_string()),
-            Token::Cpar,
-            Token::Arrow,
-            Token::Int,
-            Token::Okey,
-            Token::Id("x".to_string()),
-            Token::Plus,
-            Token::Id("y".to_string()),
-            Token::Semicolon,
-            Token::Ckey,
-            Token::Let,
-            Token::Id("result".to_string()),
-            Token::Assig,
-            Token::Id("add".to_string()),
-            Token::Opar,
-            Token::Id("five".to_string()),
-            Token::Coma,
-            Token::Id("ten".to_string()),
-            Token::Cpar,
-            Token::Semicolon,
-            Token::Eof,
-        ];
-
-        let mut lexer = Lexer::new(input.to_string());
-
-        for (i, token) in expected.iter().enumerate() {
-            let new_token = lexer.next_token();
-            println!("Test {i} expected: {token}, got: {new_token}");
-            assert_eq!(*token, new_token);
-        }
-    }
-
-    #[test]
-    fn test_one_char_operands() {
-        let input = "-/*5:;
-5 < 10 > 5;
-";
-
-        let expected = vec![
-            Token::Minus,
-            Token::Div,
-            Token::Mult,
-            Token::ConstInt(5),
-            Token::Colon,
-            Token::Semicolon,
-            Token::ConstInt(5),
-            Token::Lt,
-            Token::ConstInt(10),
-            Token::Gt,
-            Token::ConstInt(5),
-            Token::Semicolon,
-            Token::Eof,
-        ];
-
-        let mut lexer = Lexer::new(input.to_string());
-
-        for (i, token) in expected.iter().enumerate() {
-            let new_token = lexer.next_token();
-            println!("Test {i} expected: {token}, got: {new_token}");
-            assert_eq!(*token, new_token);
-        }
-    }
-
-    #[test]
-    fn test_if_else_bools() {
-        let input = "
-if (5 < 10) {
-    return true;
-} elif {
-    return true;
-} else {
-    return false;
-}
-
-and or not
-";
-
-        let expected = vec![
-            Token::If,
-            Token::Opar,
-            Token::ConstInt(5),
-            Token::Lt,
-            Token::ConstInt(10),
-            Token::Cpar,
-            Token::Okey,
-            Token::Return,
-            Token::ConstBool(true),
-            Token::Semicolon,
-            Token::Ckey,
-            Token::Elif,
-            Token::Okey,
-            Token::Return,
-            Token::ConstBool(true),
-            Token::Semicolon,
-            Token::Ckey,
-            Token::Else,
-            Token::Okey,
-            Token::Return,
-            Token::ConstBool(false),
-            Token::Semicolon,
-            Token::Ckey,
-            Token::And,
-            Token::Or,
-            Token::Not,
-            Token::Eof,
-        ];
-
-        let mut lexer = Lexer::new(input.to_string());
-
-        for (i, token) in expected.iter().enumerate() {
-            let new_token = lexer.next_token();
-            println!("Test {i} expected: {token}, got: {new_token}");
-            assert_eq!(*token, new_token);
-        }
-    }
-
-    #[test]
-    fn test_two_char_operands() {
-        let input = "
-10 == 10;
-10 != 9;
-<= >=
--- ++
-";
-
-        let expected = vec![
-            Token::ConstInt(10),
-            Token::Eq,
-            Token::ConstInt(10),
-            Token::Semicolon,
-            Token::ConstInt(10),
-            Token::Neq,
-            Token::ConstInt(9),
-            Token::Semicolon,
-            Token::Le,
-            Token::Ge,
-            Token::Dec,
-            Token::Inc,
-            Token::Eof,
-        ];
-
-        let mut lexer = Lexer::new(input.to_string());
-
-        for (i, token) in expected.iter().enumerate() {
-            let new_token = lexer.next_token();
-            println!("Test {i} expected: {token}, got: {new_token}");
-            assert_eq!(*token, new_token);
-        }
-    }
-}

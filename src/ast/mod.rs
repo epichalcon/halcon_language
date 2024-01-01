@@ -24,7 +24,6 @@ pub enum AstNode {
     CallExpression(CallExpression),
     LetStatement(LetStatement),
     ReturnStatement(ReturnStatement),
-    ExpressionStatement(ExpressionStatement),
     BlockStatement(BlockStatement),
 }
 
@@ -42,7 +41,6 @@ impl Node for AstNode {
             AstNode::CallExpression(expression) => expression.token_literal(),
             AstNode::LetStatement(statement) => statement.token_literal(),
             AstNode::ReturnStatement(statement) => statement.token_literal(),
-            AstNode::ExpressionStatement(statement) => statement.token_literal(),
             AstNode::BlockStatement(statement) => statement.token_literal(),
             AstNode::StringLiteral(statement) => statement.token_literal(),
             AstNode::ArrayLiteral(statement) => statement.token_literal(),
@@ -64,7 +62,6 @@ impl Node for AstNode {
             AstNode::CallExpression(expression) => expression.string(),
             AstNode::LetStatement(statement) => statement.string(),
             AstNode::ReturnStatement(statement) => statement.string(),
-            AstNode::ExpressionStatement(statement) => statement.string(),
             AstNode::BlockStatement(statement) => statement.string(),
             AstNode::StringLiteral(statement) => statement.string(),
             AstNode::ArrayLiteral(statement) => statement.string(),

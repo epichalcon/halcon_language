@@ -38,22 +38,6 @@ impl Node for ReturnStatement {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ExpressionStatement {
-    pub token: Token,
-    pub expression: Box<AstNode>,
-}
-
-impl Node for ExpressionStatement {
-    fn token_literal(&self) -> String {
-        self.token.to_string()
-    }
-
-    fn string(&self) -> String {
-        self.expression.string()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlockStatement {
     pub token: Token,
     pub statements: Vec<AstNode>,
