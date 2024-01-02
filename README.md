@@ -25,7 +25,7 @@ The language will have the following operators:
     - Minus ´-´
     - Multiplication ´*´
     - Division ´/´
-    - Modulus ´%´ _TODO_
+    - Modulus ´%´
 - Relation:
     - Equals ´==´
     - Not equals ´!=´

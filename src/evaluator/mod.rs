@@ -9,7 +9,7 @@ use crate::{
     ast::{AstNode, Node},
     object::environment::Environment,
     object::{
-        Boolean, Error, Integer, ObjectType, ReturnValue, BOOLEAN, ERROR, INTEGER, NULL, RETURN,
+        Boolean, Error, Integer, ObjectType, ReturnValue,  ERROR, INTEGER,  RETURN,
     },
     token::Token,
 };
@@ -567,6 +567,9 @@ impl Evaluator {
             }),
             "*" => ObjectType::Integer(Integer {
                 value: left_val * right_val,
+            }),
+            "%" => ObjectType::Integer(Integer {
+                value: left_val % right_val,
             }),
             "/" => ObjectType::Integer(Integer {
                 value: left_val / right_val,

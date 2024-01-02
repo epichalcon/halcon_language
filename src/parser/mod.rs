@@ -570,6 +570,7 @@ impl Parser {
             | Token::Plus
             | Token::Minus
             | Token::Div
+            | Token::Mod
             | Token::Mult => Ok(self.parse_infix_expression(left)?),
             Token::Opar => Ok(self.parse_call_expression(left)?),
             Token::Obrac => Ok(self.parse_index_expression(left)?),
@@ -786,6 +787,7 @@ impl Parser {
             Token::Minus => Precedence::Sum,
             Token::Div => Precedence::Product,
             Token::Mult => Precedence::Product,
+            Token::Mod => Precedence::Product,
             Token::Opar => Precedence::Call,
             Token::Obrac => Precedence::Index,
             _ => Precedence::Lowest,
