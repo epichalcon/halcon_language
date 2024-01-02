@@ -201,6 +201,9 @@ impl Lexer {
                         "and" => Token::And,
                         "or" => Token::Or,
                         "not" => Token::Not,
+                        "for" => Token::For,
+                        "while" => Token::While,
+                        "loop" => Token::Loop,
                         _ => Token::Id(id),
                     };
                 } else if ch.is_ascii_digit() {

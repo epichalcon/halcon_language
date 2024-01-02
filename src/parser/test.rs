@@ -388,6 +388,61 @@ fn test_if_else_expression() {
     test_identifier(&alternative, "y")
 }
 
+
+#[test]
+fn test_if_elif_else_expression() {
+    let input = "if (x < y) { x } elif (x == y) { x } else { y }";
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let parse_program = parser.parse_program();
+    let program = get_program(&parse_program);
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+
+    let exp = &program.statements[0];
+
+    let if_expression = match exp.clone() {
+        AstNode::IfExpression(if_expression) => if_expression,
+        actual => panic!("Expected an if expression, got {:?}", actual),
+    };
+
+    test_infix_expression(&if_expression.condition, "x", "<", "y");
+
+    assert_eq!(1, if_expression.consequence.statements.len());
+
+    let consequence = &if_expression.consequence.statements[0];
+
+    test_identifier(&consequence, "x");
+
+
+    let elifs =  &if_expression.elifs;
+
+    assert_eq!(1, elifs.len());
+
+    let (elif_cond, elif_cons) = elifs[0].clone();
+
+    test_infix_expression(&elif_cond, "x", "==", "y");
+
+    assert_eq!(1, elif_cons.statements.len());
+
+    let consequence = &elif_cons.statements[0];
+
+    test_identifier(&consequence, "x");
+
+    let alternative_block = match &if_expression.alternative {
+        Some(alt) => alt,
+        None => panic!("expected an alternative"),
+    };
+
+    assert_eq!(1, alternative_block.statements.len());
+
+    let alternative = &alternative_block.statements[0];
+
+    test_identifier(&alternative, "y")
+}
+
 #[test]
 fn test_function_literal_parsing() {
     let input = "fun (x, y) {x + y}";

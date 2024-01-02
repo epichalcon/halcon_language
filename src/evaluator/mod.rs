@@ -424,6 +424,17 @@ impl Evaluator {
         if is_truthy(condition) {
             self.eval(AstNode::BlockStatement(if_expression.consequence))
         } else {
+            for (elif_cond, elif_cons) in if_expression.elifs {
+                let condition = self.eval(elif_cond);
+
+                if is_error(&condition) {
+                    return condition;
+                }
+
+                if is_truthy(condition) {
+                    return self.eval(AstNode::BlockStatement(elif_cons));
+                }
+            }
             match if_expression.alternative {
                 Some(alternative) => self.eval(AstNode::BlockStatement(alternative)),
                 None => ObjectType::Null,

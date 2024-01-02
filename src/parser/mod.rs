@@ -396,6 +396,22 @@ impl Parser {
 
         let consequence = self.parse_block_statement()?;
 
+        let mut elifs = vec![];
+
+        while self.peek_token_is(Token::Elif) {
+            self.next_token();
+            self.expect_peek(Token::Opar);
+            self.next_token();
+            let elif_cond = self.parse_expression(Precedence::Lowest)?;
+            self.expect_peek(Token::Cpar);
+
+            self.expect_peek(Token::Okey);
+
+            let elif_cons = self.parse_block_statement()?;
+            
+            elifs.push((elif_cond, elif_cons))
+        }
+
         if self.peek_token_is(Token::Else) {
             self.next_token();
             self.expect_peek(Token::Okey);
@@ -407,6 +423,7 @@ impl Parser {
                 condition: Box::new(condition),
                 consequence,
                 alternative: Some(alternative),
+                elifs
             }))
         } else {
             Ok(AstNode::IfExpression(IfExpression {
@@ -414,6 +431,7 @@ impl Parser {
                 condition: Box::new(condition),
                 consequence,
                 alternative: None,
+                elifs
             }))
         }
     }

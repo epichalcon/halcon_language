@@ -90,9 +90,6 @@ else{
 
     }
 ```
-
-TODO: elif
-
 ### For
 The for block will be defined as:
 

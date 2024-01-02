@@ -52,6 +52,7 @@ pub struct IfExpression {
     pub token: Token,
     pub condition: Box<AstNode>,
     pub consequence: BlockStatement,
+    pub elifs: Vec<(AstNode, BlockStatement)>,
     pub alternative: Option<BlockStatement>,
 }
 
@@ -61,19 +62,29 @@ impl Node for IfExpression {
     }
 
     fn string(&self) -> String {
-        match &self.alternative {
-            None => {
+        let res = format!(
+            "if{} {}",
+            self.condition.string(),
+            self.consequence.string()
+        );
+
+        let elifs = format!("{}{}", res, self
+            .elifs
+            .iter()
+            .fold(String::new(), |acc, (cond, cons)| {
                 format!(
-                    "if{} {}",
-                    self.condition.string(),
-                    self.consequence.string()
+                    "{acc} elif {} {}",
+                    cond.string(),
+                    cons.string()
                 )
-            }
+            }));
+
+        match &self.alternative {
+            None => elifs,
             Some(alternative) => {
                 format!(
-                    "if{} {}else {}",
-                    self.condition.string(),
-                    self.consequence.string(),
+                    "{} else {}",
+                    elifs,
                     alternative.string()
                 )
             }
@@ -296,7 +307,6 @@ impl Node for CallExpression {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PostIncrement {
     pub token: Token,
@@ -314,7 +324,6 @@ impl Node for PostIncrement {
         self.token_literal()
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PostDecrement {
