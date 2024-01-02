@@ -31,8 +31,8 @@ The language will have the following operators:
     - Not equals ´!=´
     - Less than ´<´
     - Grater than ´>´
-    - Less or equal ´<=´ _TODO_
-    - Grater or equal ´>=´ _TODO_
+    - Less or equal ´<=´
+    - Grater or equal ´>=´
 - Logic:
     - and ´and´
     - or ´or´

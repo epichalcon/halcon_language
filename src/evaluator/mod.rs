@@ -577,6 +577,12 @@ impl Evaluator {
             ">" => ObjectType::Boolean(Boolean {
                 value: left_val > right_val,
             }),
+            ">=" => ObjectType::Boolean(Boolean {
+                value: left_val >= right_val,
+            }),
+            "<=" => ObjectType::Boolean(Boolean {
+                value: left_val <= right_val,
+            }),
             "==" => ObjectType::Boolean(Boolean {
                 value: left_val == right_val,
             }),

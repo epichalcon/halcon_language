@@ -565,6 +565,8 @@ impl Parser {
             | Token::Neq
             | Token::Lt
             | Token::Gt
+            | Token::Ge
+            | Token::Le
             | Token::Plus
             | Token::Minus
             | Token::Div
@@ -778,6 +780,8 @@ impl Parser {
             Token::Neq => Precedence::Equals,
             Token::Lt => Precedence::LessGreater,
             Token::Gt => Precedence::LessGreater,
+            Token::Le => Precedence::LessGreater,
+            Token::Ge => Precedence::LessGreater,
             Token::Plus => Precedence::Sum,
             Token::Minus => Precedence::Sum,
             Token::Div => Precedence::Product,
