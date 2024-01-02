@@ -226,6 +226,25 @@ fn test_let_statements() {
     }
 }
 
+
+#[test]
+fn test_assign_statement() {
+    let tests = vec![
+        ("let a = 5; a = 2;", 2),
+        ("let a = 5; a = 3 * 2;", 6),
+        ("let a = 5; let b = 3; a = b;", 3),
+        ("let a = 5; let b = a; a = a + b + 5; a;", 15),
+    ];
+
+    for (input, expected) in tests {
+        dbg!(&input);
+        dbg!(&expected);
+        let evaluated = test_eval(input);
+
+        test_integer_object(evaluated, expected)
+    }
+}
+
 #[test]
 fn test_function_object() {
     let input = "fun(x) {x + 2}";

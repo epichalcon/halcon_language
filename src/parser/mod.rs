@@ -4,11 +4,11 @@ use crate::ast::expressions::{
     ArrayLiteral, Boolean, CallExpression, DictLiteral, FunctionLiteral, IfExpression,
     IndexExpression, InfixExpression, IntegerLiteral, PrefixExpression, StringLiteral,
 };
-use crate::ast::statements::BlockStatement;
-use crate::ast::AstNode;
+use crate::ast::statements::{Assignation, BlockStatement};
 use crate::ast::{
     expressions::Identifier, statements::LetStatement, statements::ReturnStatement, Program,
 };
+use crate::ast::{AstNode, Node};
 use crate::lexer::Lexer;
 use crate::parser::precedence::Precedence;
 use crate::token::Token;
@@ -509,7 +509,6 @@ impl Parser {
         }))
     }
 
-
     /**
     Parses an dict literal and returns a `AstNode::DictLiteral`
     An dict expression is parsed as
@@ -547,7 +546,6 @@ impl Parser {
         }))
     }
 
-
     /**
     Parses infix expressions and returns the corresponding `AstNode`. These include:
     * Boolean operators
@@ -572,6 +570,7 @@ impl Parser {
             | Token::Div
             | Token::Mod
             | Token::Mult => Ok(self.parse_infix_expression(left)?),
+            Token::Assig => Ok(self.parse_assignation_expression(left)?),
             Token::Opar => Ok(self.parse_call_expression(left)?),
             Token::Obrac => Ok(self.parse_index_expression(left)?),
             _ => {
@@ -602,6 +601,39 @@ impl Parser {
         }))
     }
 
+    /**
+    Parses an assignation statement and returns the corresponding `AstNode`
+
+    # Arguments
+    * `left` - the identifier to be assigned
+    *
+    */
+    fn parse_assignation_expression(&mut self, left: AstNode) -> Result<AstNode, MyParseError> {
+        let tok = self.current_token.clone();
+
+        let name = match left {
+            AstNode::Identifier(id) => id,
+            other => {
+                self.errors
+                    .push(format!("{} cant be assigned to", other.string()));
+                return Err(MyParseError);
+            }
+        };
+
+        self.next_token();
+
+        let expression = self.parse_expression(Precedence::Lowest)?;
+
+        if self.peek_token_is(Token::Semicolon) {
+            self.next_token();
+        }
+
+        Ok(AstNode::Assignation(Assignation {
+            token: tok.clone(),
+            name,
+            value: Box::new(expression),
+        }))
+    }
 
     /**
     Parses an index expression and returns the corresponding `AstNode`
@@ -625,7 +657,6 @@ impl Parser {
             index: Box::new(index),
         }))
     }
-
 
     /**
     Parses a call expression and returns the corresponding `AstNode`
@@ -701,7 +732,6 @@ impl Parser {
         self.errors.push(msg);
     }
 
-
     /**
     Adds an error to the error list when the prefix expression cant be handled
 
@@ -724,7 +754,6 @@ impl Parser {
         self.errors.push(msg);
     }
 
-
     /**
     Retruns if the current token is equal to the specified token.
 
@@ -734,7 +763,6 @@ impl Parser {
     fn cur_token_is(&self, tok: Token) -> bool {
         self.current_token.clone() == tok
     }
-
 
     /**
     Retruns if the next token is equal to the specified token.
@@ -790,10 +818,10 @@ impl Parser {
             Token::Mod => Precedence::Product,
             Token::Opar => Precedence::Call,
             Token::Obrac => Precedence::Index,
+            Token::Assig => Precedence::Assig,
             _ => Precedence::Lowest,
         }
     }
-
 }
 
 #[derive(Debug)]

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::ast::expressions::{DictLiteral, Identifier, IfExpression};
+use crate::ast::statements::Assignation;
 use crate::object::{
     Array, Dict, Function, Object, StringObject, ARRAY, BUILTIN, DICT, FUNCTION, STRING,
 };
@@ -183,6 +184,9 @@ impl Evaluator {
                 self.eval_index_expression(left, index)
             }
             AstNode::DictLiteral(dict) => self.eval_dict_literal(dict),
+            AstNode::Assignation(assig) => {
+                self.eval_assignation_literal(assig)
+            },
             _ => panic!("Ast node not treated"),
         }
     }
@@ -239,6 +243,32 @@ impl Evaluator {
             Some(res) => res,
             None => panic!("no statements in program"),
         }
+    }
+
+
+    /**
+    Evaluates an assigment expression and returns the result. This includes:
+    * not
+    * minus
+
+    # Arguments
+    * `operator` - the prefix operator to parse
+    * `right` - the Object to apply the operator
+    */
+    fn eval_assignation_literal(&mut self, assig: Assignation) -> ObjectType {
+
+        let val = self.eval(*assig.value);
+        if is_error(&val) {
+            return val;
+        }
+
+        if self.env.get(assig.name.token_literal()) == None {
+            return new_error(format!("{} is not in scope", assig.name.token_literal()));
+        }
+
+        self.env
+            .set(assig.name.token_literal().as_str(), val.clone());
+        val
     }
 
     /**
@@ -629,6 +659,7 @@ impl Evaluator {
             )),
         }
     }
+
 }
 
 /**

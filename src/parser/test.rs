@@ -243,6 +243,30 @@ fn test_operator_precedence_parsing() {
     }
 }
 
+
+#[test]
+fn test_assignation() {
+    let input = "a = 1;";
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let parse_program = parser.parse_program();
+    let program = get_program(&parse_program);
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+
+    let exp = &program.statements[0];
+
+    let assignation = match exp.clone() {
+        AstNode::Assignation(assig) => assig,
+        actual => panic!("Expected an assignation statement, got {:?}", actual),
+    };
+
+    assert_eq!(&assignation.name.string(), "a");
+    test_literal_expression(&assignation.value, "1");
+}
+
 #[test]
 fn test_if_expression() {
     let input = "if (x < y) { x }";

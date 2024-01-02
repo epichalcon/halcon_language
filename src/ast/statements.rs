@@ -56,3 +56,21 @@ impl Node for BlockStatement {
             })
     }
 }
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Assignation {
+    pub token: Token,
+    pub name: Identifier,
+    pub value: Box<AstNode>,
+}
+
+impl Node for Assignation {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+
+    fn string(&self) -> String {
+        format!("{} = {};", self.name.string(), self.value.string())
+    }
+}
