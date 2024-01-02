@@ -38,8 +38,8 @@ The language will have the following operators:
     - or ´or´
     - not ´not´
 - Increment Decrement:
-    - Post and preincrement ´++´ _TODO_
-    - Post and predecrement ´--´ _TODO_
+    - Post and preincrement ´++´
+    - Post and predecrement ´--´ 
 - Asignation:
     - Simple asignation ´=´
     - SumAsignation ´+=´
@@ -130,8 +130,6 @@ TODO: not yet implemented for loop
 The language will have simple comments starting with ´//´ that continue untill a linebreak
 
 // this is a comment
-
-TODO: not yet implemented coments
 
 # Compilation and execution commands
 

@@ -89,6 +89,11 @@ impl Lexer {
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
+
+        if self.ch == b'/' && self.peek_char() == b'/' {
+            self.jump_comment();
+        }
+
         let token: Token = match self.ch {
             b'+' => {
                 if self.peek_char() == b'=' {
@@ -315,6 +320,24 @@ impl Lexer {
             0
         } else {
             self.input[self.read_position]
+        }
+    }
+
+    /**
+    Moves the pointers to the next line, jumping the comment
+    # Arguments
+    
+    no arguments
+    */
+    fn jump_comment(&mut self) {
+        self.read_char();
+        while self.ch != b'\n' && self.peek_char() != 0 {
+            self.read_char()
+        }
+        self.read_char();
+
+        if self.ch == b'/' && self.peek_char() == b'/' {
+            self.jump_comment();
         }
     }
 

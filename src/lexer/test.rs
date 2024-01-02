@@ -210,9 +210,10 @@ fn test_two_char_operands() {
     let input = "
 10 == 10;
 10 != 9;
-<= >=
+<= >= // hola
 -- ++
-";
+// hola
+//";
 
     let expected = vec![
         Token::ConstInt(10),
