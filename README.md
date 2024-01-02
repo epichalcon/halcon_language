@@ -42,10 +42,10 @@ The language will have the following operators:
     - Post and predecrement ´--´ _TODO_
 - Asignation:
     - Simple asignation ´=´
-    - SumAsignation ´+=´ _TODO_
-    - MinusAsignation ´-=´ _TODO_
-    - MultiplyAsignation ´*=´ _TODO_
-    - DivideAsignation ´/=´ _TODO_
+    - SumAsignation ´+=´
+    - MinusAsignation ´-=´
+    - MultiplyAsignation ´*=´
+    - DivideAsignation ´/=´
 
 Parentheses will be used to change the order or priority of the operations. By default the order will be from left to right
 

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::ast::expressions::{DictLiteral, Identifier, IfExpression};
-use crate::ast::statements::Assignation;
+use crate::ast::statements::{Assignation, Operation};
 use crate::object::{
     Array, Dict, Function, Object, StringObject, ARRAY, BUILTIN, DICT, FUNCTION, STRING,
 };
@@ -9,9 +9,7 @@ use crate::object::{
 use crate::{
     ast::{AstNode, Node},
     object::environment::Environment,
-    object::{
-        Boolean, Error, Integer, ObjectType, ReturnValue,  ERROR, INTEGER,  RETURN,
-    },
+    object::{Boolean, Error, Integer, ObjectType, ReturnValue, ERROR, INTEGER, RETURN},
     token::Token,
 };
 
@@ -184,9 +182,7 @@ impl Evaluator {
                 self.eval_index_expression(left, index)
             }
             AstNode::DictLiteral(dict) => self.eval_dict_literal(dict),
-            AstNode::Assignation(assig) => {
-                self.eval_assignation_literal(assig)
-            },
+            AstNode::Assignation(assig) => self.eval_assignation_literal(assig),
             _ => panic!("Ast node not treated"),
         }
     }
@@ -245,7 +241,6 @@ impl Evaluator {
         }
     }
 
-
     /**
     Evaluates an assigment expression and returns the result. This includes:
     * not
@@ -256,19 +251,63 @@ impl Evaluator {
     * `right` - the Object to apply the operator
     */
     fn eval_assignation_literal(&mut self, assig: Assignation) -> ObjectType {
-
         let val = self.eval(*assig.value);
         if is_error(&val) {
             return val;
         }
 
-        if self.env.get(assig.name.token_literal()) == None {
-            return new_error(format!("{} is not in scope", assig.name.token_literal()));
-        }
+        let left_object = match self.env.get(assig.name.token_literal()) {
+            Some(value) => value,
+            None => return new_error(format!("{} is not in scope", assig.name.token_literal())),
+        };
 
-        self.env
-            .set(assig.name.token_literal().as_str(), val.clone());
-        val
+        if assig.operation == Operation::Assig {
+            self.env
+                .set(assig.name.token_literal().as_str(), val.clone());
+            val
+        } else {
+            let mut left_val = match left_object {
+                ObjectType::Integer(int) => int.value,
+                _ => {
+                    return new_error(format!(
+                        "sum assign is not a valid operation for {}",
+                        left_object.object_type()
+                    ))
+                }
+            };
+
+            let right_val = match val {
+                ObjectType::Integer(int) => int.value,
+                _ => {
+                    return new_error(format!(
+                        "sum assign is not a valid operation for {}",
+                        left_object.object_type()
+                    ))
+                }
+            };
+
+            match assig.operation {
+                crate::ast::statements::Operation::Sum => {
+                    left_val += right_val;
+                }
+                crate::ast::statements::Operation::Minus => {
+                    left_val -= right_val;
+                }
+                crate::ast::statements::Operation::Mult => {
+                    left_val *= right_val;
+                }
+                crate::ast::statements::Operation::Divide => {
+                    left_val /= right_val;
+                }
+                _ => panic!(),
+            }
+
+            let new_val = ObjectType::Integer(Integer { value: left_val });
+
+            self.env
+                .set(assig.name.token_literal().as_str(), new_val.clone());
+            new_val
+        }
     }
 
     /**
@@ -659,7 +698,6 @@ impl Evaluator {
             )),
         }
     }
-
 }
 
 /**
@@ -671,7 +709,6 @@ Returns an `ObjectType::Error` with the specified message
 fn new_error(message: String) -> ObjectType {
     ObjectType::Error(Error { message })
 }
-
 
 /**
 Returns if an object is truthy. The results are the following

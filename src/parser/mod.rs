@@ -4,7 +4,7 @@ use crate::ast::expressions::{
     ArrayLiteral, Boolean, CallExpression, DictLiteral, FunctionLiteral, IfExpression,
     IndexExpression, InfixExpression, IntegerLiteral, PrefixExpression, StringLiteral,
 };
-use crate::ast::statements::{Assignation, BlockStatement};
+use crate::ast::statements::{Assignation, BlockStatement, Operation};
 use crate::ast::{
     expressions::Identifier, statements::LetStatement, statements::ReturnStatement, Program,
 };
@@ -570,7 +570,9 @@ impl Parser {
             | Token::Div
             | Token::Mod
             | Token::Mult => Ok(self.parse_infix_expression(left)?),
-            Token::Assig => Ok(self.parse_assignation_expression(left)?),
+            Token::Assig | Token::DivAsig | Token::SumAsig | Token::MinAsig | Token::MulAsig => {
+                Ok(self.parse_assignation_expression(left)?)
+            }
             Token::Opar => Ok(self.parse_call_expression(left)?),
             Token::Obrac => Ok(self.parse_index_expression(left)?),
             _ => {
@@ -620,6 +622,20 @@ impl Parser {
             }
         };
 
+        let operation = match tok {
+            Token::Assig => Operation::Assig,
+            Token::SumAsig => Operation::Sum,
+            Token::MinAsig => Operation::Minus,
+            Token::MulAsig => Operation::Mult,
+            Token::DivAsig => Operation::Divide,
+
+            other => {
+                self.errors
+                    .push(format!("{} is not a valid assignation type", other.to_string()));
+                return Err(MyParseError);}
+            
+        };
+
         self.next_token();
 
         let expression = self.parse_expression(Precedence::Lowest)?;
@@ -632,6 +648,7 @@ impl Parser {
             token: tok.clone(),
             name,
             value: Box::new(expression),
+            operation,
         }))
     }
 
@@ -819,6 +836,10 @@ impl Parser {
             Token::Opar => Precedence::Call,
             Token::Obrac => Precedence::Index,
             Token::Assig => Precedence::Assig,
+            Token::SumAsig => Precedence::Assig,
+            Token::MinAsig => Precedence::Assig,
+            Token::MulAsig => Precedence::Assig,
+            Token::DivAsig => Precedence::Assig,
             _ => Precedence::Lowest,
         }
     }

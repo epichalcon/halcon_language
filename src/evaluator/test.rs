@@ -197,6 +197,7 @@ fn test_error_handling() {
             r#"{"name": "asdf"}[fun(x) {x}]"#,
             "unusable as hash key: FUNCTION",
         ),
+        ("a = 1;", "a is not in scope"),
     ];
 
     for (input, expected) in tests {
@@ -234,6 +235,10 @@ fn test_assign_statement() {
         ("let a = 5; a = 3 * 2;", 6),
         ("let a = 5; let b = 3; a = b;", 3),
         ("let a = 5; let b = a; a = a + b + 5; a;", 15),
+        ("let a = 5; a += 1;", 6),
+        ("let a = 5; a -= 1;", 4),
+        ("let a = 5; a *= 2;", 10),
+        ("let a = 6; a /= 2;", 3),
     ];
 
     for (input, expected) in tests {

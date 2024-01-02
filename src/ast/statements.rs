@@ -57,12 +57,21 @@ impl Node for BlockStatement {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Operation {
+    Sum,
+    Minus,
+    Mult,
+    Divide,
+    Assig
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Assignation {
     pub token: Token,
     pub name: Identifier,
     pub value: Box<AstNode>,
+    pub operation: Operation
 }
 
 impl Node for Assignation {
