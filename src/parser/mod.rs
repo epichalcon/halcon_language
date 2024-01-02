@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::ast::expressions::{
     ArrayLiteral, Boolean, CallExpression, DictLiteral, FunctionLiteral, IfExpression,
-    IndexExpression, InfixExpression, IntegerLiteral, PrefixExpression, StringLiteral,
+    IndexExpression, InfixExpression, IntegerLiteral, PrefixExpression, StringLiteral, PostIncrement, PostDecrement,
 };
 use crate::ast::statements::{Assignation, BlockStatement, Operation};
 use crate::ast::{
@@ -298,10 +298,25 @@ impl Parser {
     * `id` - The `String` containing the id to parse
 
     */
-    fn parse_identifier(&self, id: String) -> Result<AstNode, MyParseError> {
-        Ok(AstNode::Identifier(Identifier {
-            token: Token::Id(id.to_string()),
-        }))
+    fn parse_identifier(&mut self, id: String) -> Result<AstNode, MyParseError> {
+        if self.peek_token_is(Token::Inc) {
+            self.next_token();
+
+            Ok(AstNode::PostIncrement(PostIncrement {
+                token: Token::Id(id.to_string()),
+            }))
+        } else if self.peek_token_is(Token::Dec) {
+            self.next_token();
+            Ok(AstNode::PostDecrement(PostDecrement {
+                token: Token::Id(id.to_string()),
+            }))
+        } else {
+            Ok(AstNode::Identifier(Identifier {
+                token: Token::Id(id.to_string()),
+            }))
+        }
+
+
     }
 
     /**

@@ -26,6 +26,8 @@ pub enum AstNode {
     ReturnStatement(ReturnStatement),
     BlockStatement(BlockStatement),
     Assignation(Assignation),
+    PostIncrement(PostIncrement),
+    PostDecrement(PostDecrement),
 }
 
 impl Node for AstNode {
@@ -48,6 +50,8 @@ impl Node for AstNode {
             AstNode::IndexExpression(statement) => statement.token_literal(),
             AstNode::DictLiteral(statement) => statement.token_literal(),
             AstNode::Assignation(statement) => statement.token_literal(),
+            AstNode::PostIncrement(statement) => statement.token_literal(),
+            AstNode::PostDecrement(statement) => statement.token_literal(),
         }
     }
 
@@ -70,6 +74,8 @@ impl Node for AstNode {
             AstNode::IndexExpression(statement) => statement.string(),
             AstNode::DictLiteral(statement) => statement.string(),
             AstNode::Assignation(statement) => statement.string(),
+            AstNode::PostIncrement(statement) => statement.string(),
+            AstNode::PostDecrement(statement) => statement.string(),
         }
     }
 }

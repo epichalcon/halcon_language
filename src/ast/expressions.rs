@@ -295,3 +295,41 @@ impl Node for CallExpression {
         format!("{}({})", self.function.string(), arguments)
     }
 }
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PostIncrement {
+    pub token: Token,
+}
+
+impl Node for PostIncrement {
+    fn token_literal(&self) -> String {
+        match &self.token {
+            Token::Id(id) => id.to_string(),
+            _ => panic!(),
+        }
+    }
+
+    fn string(&self) -> String {
+        self.token_literal()
+    }
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PostDecrement {
+    pub token: Token,
+}
+
+impl Node for PostDecrement {
+    fn token_literal(&self) -> String {
+        match &self.token {
+            Token::Id(id) => id.to_string(),
+            _ => panic!(),
+        }
+    }
+
+    fn string(&self) -> String {
+        self.token_literal()
+    }
+}

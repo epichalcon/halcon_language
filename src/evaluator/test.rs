@@ -251,6 +251,22 @@ fn test_assign_statement() {
 }
 
 #[test]
+fn test_post_inc_dec() {
+    let tests = vec![
+        ("let a = 5; a++;", 6),
+        ("let a = 5; a--;", 4),
+    ];
+
+    for (input, expected) in tests {
+        dbg!(&input);
+        dbg!(&expected);
+        let evaluated = test_eval(input);
+
+        test_integer_object(evaluated, expected)
+    }
+}
+
+#[test]
 fn test_function_object() {
     let input = "fun(x) {x + 2}";
 

@@ -275,6 +275,52 @@ fn test_assignation() {
     }
 }
 
+
+#[test]
+fn test_post_increment() {
+    let input = "a++;";
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let parse_program = parser.parse_program();
+    let program = get_program(&parse_program);
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+
+    let exp = &program.statements[0];
+
+    let post_inc = match exp.clone() {
+        AstNode::PostIncrement(assig) => assig,
+        actual => panic!("Expected an post increment expression, got {:?}", actual),
+    };
+
+    assert_eq!(&post_inc.string(), "a");
+}
+
+
+#[test]
+fn test_post_decrement() {
+    let input = "a--;";
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let parse_program = parser.parse_program();
+    let program = get_program(&parse_program);
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+
+    let exp = &program.statements[0];
+
+    let post_dec = match exp.clone() {
+        AstNode::PostDecrement(assig) => assig,
+        actual => panic!("Expected an post decrement expression, got {:?}", actual),
+    };
+
+    assert_eq!(&post_dec.string(), "a");
+}
+
 #[test]
 fn test_if_expression() {
     let input = "if (x < y) { x }";

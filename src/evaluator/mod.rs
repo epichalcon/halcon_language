@@ -183,6 +183,40 @@ impl Evaluator {
             }
             AstNode::DictLiteral(dict) => self.eval_dict_literal(dict),
             AstNode::Assignation(assig) => self.eval_assignation_literal(assig),
+            AstNode::PostDecrement(inc) => {
+                let obj = match self.env.get(inc.string()) {
+                    Some(value) => value,
+                    None => return new_error(format!("{} is not in scope", inc.string())),
+                };
+                let val = match obj {
+                    ObjectType::Integer(int) => int.value,
+                    _ => {
+                        return new_error(format!(
+                            "post increment is not a valid operation for {}",
+                            obj.object_type()
+                        ))
+                    }
+                };
+
+                ObjectType::Integer(Integer { value: val - 1 })
+            }
+            AstNode::PostIncrement(dec) => {
+                let obj = match self.env.get(dec.string()) {
+                    Some(value) => value,
+                    None => return new_error(format!("{} is not in scope", dec.string())),
+                };
+                let val = match obj {
+                    ObjectType::Integer(int) => int.value,
+                    _ => {
+                        return new_error(format!(
+                            "post increment is not a valid operation for {}",
+                            obj.object_type()
+                        ))
+                    }
+                };
+
+                ObjectType::Integer(Integer { value: val + 1 })
+            }
             _ => panic!("Ast node not treated"),
         }
     }
