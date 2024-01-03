@@ -1,5 +1,5 @@
 [package]
-name = "mylanguage"
+name = "halcon"
 version = "0.1.0"
 edition = "2021"
 

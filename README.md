@@ -1,8 +1,35 @@
 # Mylanguage: Halcon
 
-In this proyect I would like to try to write a simple interpreter that can interpret and execute a simple language. The goal is to practice the knoledge aquired in class (Procesadores del lenguaje) and through the book writing an interpreter with GO and try to expand it so that the code can be executed. Another goal of this proyect is to practice with rust and develop a medum sized proyect with several modules that interact with eachother
+In this proyect I would like to try to write a simple interpreter that can interpret and execute a simple language. The goal is to practice the knoledge aquired in class (Procesadores del lenguaje) and through the book ["writing an interpreter with GO"](https://interpreterbook.com) and expand on it to write my own programming language. Another goal of this proyect is to practice with rust and develop a medum sized proyect with several modules that interact with eachother.
 
 ---
+
+# Building the proyect
+
+As the proyect is writen in rust and uses the Cargo package manager, rust and cargo must be installed in the system. To install them follow the instructions in this [link](https://doc.rust-lang.org/cargo/getting-started/installation.html) 
+
+To build the proyect do the following steps:
+- clone the repo
+- compile the proyect (this will generate the executable in the target/release folder)
+- copy the executable to the root folder
+
+```
+git clone https://github.com/epichalcon/halcon_language.git
+cd halcon_language
+cargo build --release
+cp target/release/halcon .
+```
+
+# Compilation and execution commands
+
+The basic command will be 
+`./halcon [<source file name>]`
+
+the file extension must be .hc
+
+If a source file is not specified, a REPL will be executed which will prompt the user to provide commands one at a time.
+
+
 # Language definition
 
 As I am following the "writing an interpreter in go" book and expanding on its content to add functionality I want to have like loops, elifs and some operators that aren't included, this language will have dynamic typing and will be expression based.
@@ -120,11 +147,3 @@ The language will have simple comments starting with ´//´ that continue untill
 
 // this is a comment
 
-# Compilation and execution commands
-
-The basic command will be 
-`halcon [<source file name>]`
-
-the file extension must be .hc
-
-If a source file is not specified, a REPL will be executed which will prompt the user to provide commands one at a time.
