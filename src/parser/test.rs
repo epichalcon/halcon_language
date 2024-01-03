@@ -748,6 +748,33 @@ fn test_break_expression() {
     assert_eq!(*exp, AstNode::Break);
 }
 
+#[test]
+fn test_while_expression() {
+    let input = "while (i < 3) { x }";
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let parse_program = parser.parse_program();
+    let program = get_program(&parse_program);
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+
+    let exp = &program.statements[0];
+
+    let while_loop = match exp.clone() {
+        AstNode::WhileLoop(while_loop) => while_loop,
+        actual => panic!("Expected a while expression, got {:?}", actual),
+    };
+
+    test_infix_expression(&while_loop.condition, "i", "<", "3");
+
+
+    assert_eq!(1, while_loop.statements.statements.len());
+    let statement = &while_loop.statements.statements[0];
+    test_identifier(&statement, "x")
+}
+
 
 //-------------------[Test helpers]-------------------//
 

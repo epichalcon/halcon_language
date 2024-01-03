@@ -370,3 +370,33 @@ impl Node for ForLoop {
         )
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct WhileLoop {
+    pub token: Token,
+    pub condition: Box<AstNode>,
+    pub statements: BlockStatement,
+}
+
+impl Node for WhileLoop {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+
+    fn string(&self) -> String {
+        format!(
+            "while ({}) {{{}}}",
+            self.condition.string(),
+            self.statements.statements.iter().enumerate().fold(
+                String::new(),
+                |acc, (i, statement)| {
+                    if i < self.statements.statements.len() - 1 {
+                        format!("{acc}{}, ", statement.string())
+                    } else {
+                        format!("{acc}{}", statement.string())
+                    }
+                }
+            )
+        )
+    }
+}

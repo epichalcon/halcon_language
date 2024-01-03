@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::ast::expressions::{
     ArrayLiteral, Boolean, CallExpression, DictLiteral, FunctionLiteral, IfExpression,
     IndexExpression, InfixExpression, IntegerLiteral, PostDecrement, PostIncrement,
-    PrefixExpression, StringLiteral, ForLoop,
+    PrefixExpression, StringLiteral, ForLoop, WhileLoop,
 };
 use crate::ast::statements::{Assignation, BlockStatement, Operation};
 use crate::ast::{
@@ -265,6 +265,7 @@ impl Parser {
             Token::Opar => Ok(self.parse_grouped_expression()?),
             Token::If => Ok(self.parse_if_expression()?),
             Token::For => Ok(self.parse_for_expression()?),
+            Token::While => Ok(self.parse_while_expression()?),
             Token::Fun => Ok(self.parse_function_literal()?),
             Token::ConstStr(s) => Ok(self.parse_string_literal(s.to_string())?),
             Token::Obrac => Ok(self.parse_array_literal()?),
@@ -472,6 +473,33 @@ impl Parser {
             initialization,
             condition,
             step,
+            statements,
+        }))
+    }
+
+
+    /**
+    Parses a while loop expression and returns an `AstNode::WhileLoop`
+    A while loop expression is parsed as
+    while (<condition>) {
+        <statements>
+    }
+
+    # Arguments
+    no arguments
+    */
+    fn parse_while_expression(&mut self) -> Result<AstNode, MyParseError> {
+        let while_tok = self.current_token.clone();
+        self.expect_peek(Token::Opar);
+
+        let condition = Box::new(self.parse_expression(Precedence::Lowest)?); // does not consume the semicolon
+        self.expect_peek(Token::Okey);
+
+        let statements = self.parse_block_statement()?;
+
+        Ok(AstNode::WhileLoop(WhileLoop {
+            token: while_tok,
+            condition,
             statements,
         }))
     }

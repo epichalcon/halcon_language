@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ast::expressions::{DictLiteral, ForLoop, Identifier, IfExpression};
+use crate::ast::expressions::{DictLiteral, ForLoop, Identifier, IfExpression, WhileLoop};
 use crate::ast::statements::{Assignation, Operation};
 use crate::object::{
     Array, Dict, Function, Object, StringObject, ARRAY, BUILTIN, DICT, FUNCTION, STRING, BREAK,
@@ -222,6 +222,7 @@ impl Evaluator {
                 new_val
             }
             AstNode::ForLoop(for_loop) => self.eval_for_loop_expression(for_loop),
+            AstNode::WhileLoop(while_loop) => self.eval_while_loop_expression(while_loop),
             AstNode::Break => ObjectType::Break,
             _ => panic!("Ast node not treated"),
         }
@@ -476,6 +477,43 @@ impl Evaluator {
             self.eval(*for_loop.step.clone());
 
             condition = self.eval(*for_loop.condition.clone());
+
+            if is_error(&condition) {
+                return condition;
+            }
+
+        }
+
+        res
+    }
+
+
+    /**
+    Evaluates a while loop executing the contents until the condition is fulfilled and returns the result of the last statement.
+
+    # Arguments
+    * `while_loop` - the while loop to evaluate*/
+    fn eval_while_loop_expression(&mut self, while_loop: WhileLoop) -> ObjectType {
+        let mut condition = self.eval(*while_loop.condition.clone());
+        if is_error(&condition) {
+            return condition;
+        }
+
+        let mut res = ObjectType::Null;
+
+        while is_truthy(&condition) {
+            res = self.eval_statements(while_loop.statements.statements.clone());
+
+            dbg!(&res);
+
+            if res == ObjectType::Break {
+                return ObjectType::Null;
+            }
+            if res.object_type() == RETURN || res.object_type() == ERROR {
+                return res;
+            }
+
+            condition = self.eval(*while_loop.condition.clone());
 
             if is_error(&condition) {
                 return condition;

@@ -155,6 +155,16 @@ fn test_break_expression() {
     test_integer_object(evaluated, 1);
 }
 
+
+#[test]
+fn test_while_loop_expression() {
+    let input = "let x = 0; while (x != 3) {x++} x;";
+
+    let evaluated = test_eval(input);
+
+    test_integer_object(evaluated, 3);
+}
+
 #[test]
 fn test_return_expression() {
     let tests = vec![
