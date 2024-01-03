@@ -145,7 +145,6 @@ fn test_for_loop_expression() {
     test_integer_object(evaluated, 3);
 }
 
-
 #[test]
 fn test_break_expression() {
     let input = "let x = 0; for (let i = 0; i < 3; i++) { if (x == 1) {break;}  x++} x;";
@@ -155,7 +154,6 @@ fn test_break_expression() {
     test_integer_object(evaluated, 1);
 }
 
-
 #[test]
 fn test_while_loop_expression() {
     let input = "let x = 0; while (x != 3) {x++} x;";
@@ -163,6 +161,15 @@ fn test_while_loop_expression() {
     let evaluated = test_eval(input);
 
     test_integer_object(evaluated, 3);
+}
+
+#[test]
+fn test_loop_expression() {
+    let input = "let x = 0; loop { if (x == 1) {break;}  x++} x;";
+
+    let evaluated = test_eval(input);
+
+    test_integer_object(evaluated, 1);
 }
 
 #[test]

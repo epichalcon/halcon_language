@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ast::{statements::{LetStatement, self}, Node};
+use crate::ast::{statements::LetStatement, Node};
 
 use super::*;
 
@@ -275,7 +275,6 @@ fn test_assignation() {
     }
 }
 
-
 #[test]
 fn test_post_increment() {
     let input = "a++;";
@@ -297,7 +296,6 @@ fn test_post_increment() {
 
     assert_eq!(&post_inc.string(), "a");
 }
-
 
 #[test]
 fn test_post_decrement() {
@@ -388,7 +386,6 @@ fn test_if_else_expression() {
     test_identifier(&alternative, "y")
 }
 
-
 #[test]
 fn test_if_elif_else_expression() {
     let input = "if (x < y) { x } elif (x == y) { x } else { y }";
@@ -416,8 +413,7 @@ fn test_if_elif_else_expression() {
 
     test_identifier(&consequence, "x");
 
-
-    let elifs =  &if_expression.elifs;
+    let elifs = &if_expression.elifs;
 
     assert_eq!(1, elifs.len());
 
@@ -692,7 +688,6 @@ fn test_parsing_expression_dict() {
     }
 }
 
-
 #[test]
 fn test_for_expression() {
     let input = "for (let i = 0; i < 3; i++) { x }";
@@ -717,14 +712,12 @@ fn test_for_expression() {
 
     test_infix_expression(&for_expression.condition, "i", "<", "3");
 
-
     let post_inc = match *for_expression.step {
         AstNode::PostIncrement(assig) => assig,
         actual => panic!("Expected an post increment expression, got {:?}", actual),
     };
 
     assert_eq!(&post_inc.string(), "i");
-
 
     assert_eq!(1, for_expression.statements.statements.len());
     let statement = &for_expression.statements.statements[0];
@@ -769,12 +762,34 @@ fn test_while_expression() {
 
     test_infix_expression(&while_loop.condition, "i", "<", "3");
 
-
     assert_eq!(1, while_loop.statements.statements.len());
     let statement = &while_loop.statements.statements[0];
     test_identifier(&statement, "x")
 }
 
+#[test]
+fn test_loop_expression() {
+    let input = "loop { x }";
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let parse_program = parser.parse_program();
+    let program = get_program(&parse_program);
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+
+    let exp = &program.statements[0];
+
+    let loop_exp = match exp.clone() {
+        AstNode::Loop(loop_exp) => loop_exp,
+        actual => panic!("Expected a while expression, got {:?}", actual),
+    };
+
+    assert_eq!(1, loop_exp.statements.statements.len());
+    let statement = &loop_exp.statements.statements[0];
+    test_identifier(&statement, "x")
+}
 
 //-------------------[Test helpers]-------------------//
 

@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ast::expressions::{
-    ArrayLiteral, Boolean, CallExpression, DictLiteral, FunctionLiteral, IfExpression,
-    IndexExpression, InfixExpression, IntegerLiteral, PostDecrement, PostIncrement,
-    PrefixExpression, StringLiteral, ForLoop, WhileLoop,
-};
+use crate::ast::expressions::*;
 use crate::ast::statements::{Assignation, BlockStatement, Operation};
 use crate::ast::{
     expressions::Identifier, statements::LetStatement, statements::ReturnStatement, Program,
@@ -143,10 +139,10 @@ impl Parser {
         match self.current_token {
             Token::Let => Ok(AstNode::LetStatement(self.parse_let_statement()?)),
             Token::Return => Ok(AstNode::ReturnStatement(self.parse_return_statement()?)),
-            Token::Break =>{
+            Token::Break => {
                 self.next_token();
                 Ok(AstNode::Break)
-            },
+            }
             _ => {
                 let res = Ok(self.parse_expression(Precedence::Lowest)?);
                 if self.peek_token_is(Token::Semicolon) {
@@ -266,6 +262,7 @@ impl Parser {
             Token::If => Ok(self.parse_if_expression()?),
             Token::For => Ok(self.parse_for_expression()?),
             Token::While => Ok(self.parse_while_expression()?),
+            Token::Loop => Ok(self.parse_loop_expression()?),
             Token::Fun => Ok(self.parse_function_literal()?),
             Token::ConstStr(s) => Ok(self.parse_string_literal(s.to_string())?),
             Token::Obrac => Ok(self.parse_array_literal()?),
@@ -461,7 +458,7 @@ impl Parser {
         let condition = Box::new(self.parse_expression(Precedence::Lowest)?); // does not consume the semicolon
         self.expect_peek(Token::Semicolon);
         self.next_token();
-                                                                              // semicolon
+        // semicolon
         let step = Box::new(self.parse_expression(Precedence::Lowest)?); // does not consume the
         self.expect_peek(Token::Cpar);
         self.expect_peek(Token::Okey);
@@ -476,7 +473,6 @@ impl Parser {
             statements,
         }))
     }
-
 
     /**
     Parses a while loop expression and returns an `AstNode::WhileLoop`
@@ -500,6 +496,27 @@ impl Parser {
         Ok(AstNode::WhileLoop(WhileLoop {
             token: while_tok,
             condition,
+            statements,
+        }))
+    }
+
+    /**
+    Parses an infinite loop expression and returns an `AstNode::WhileLoop`
+    A while loop expression is parsed as
+    loop {
+        <statements>
+    }
+
+    # Arguments
+    no arguments
+    */
+    fn parse_loop_expression(&mut self) -> Result<AstNode, MyParseError> {
+        let loop_tok = self.current_token.clone();
+        self.expect_peek(Token::Okey);
+        let statements = self.parse_block_statement()?;
+
+        Ok(AstNode::Loop(Loop {
+            token: loop_tok,
             statements,
         }))
     }

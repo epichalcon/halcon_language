@@ -1,7 +1,5 @@
 # Mylanguage: Halcon
 
-![Work In Progress](https://img.shields.io/badge/Work%20In%20Progress-orange?style=for-the-badge)
-
 In this proyect I would like to try to write a simple interpreter that can interpret and execute a simple language. The goal is to practice the knoledge aquired in class (Procesadores del lenguaje) and through the book writing an interpreter with GO and try to expand it so that the code can be executed. Another goal of this proyect is to practice with rust and develop a medum sized proyect with several modules that interact with eachother
 
 ---
@@ -116,8 +114,6 @@ loop{
 ```
 
 where all of the fields are optional
-
-TODO: not yet implemented for loop
 
 ### Comments
 The language will have simple comments starting with ´//´ that continue untill a linebreak

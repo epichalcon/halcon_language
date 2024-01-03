@@ -33,7 +33,7 @@ impl Lexer {
 
     * `input` - the `String` that will be tokenized
 
-    # Examples 
+    # Examples
     ```
     let lex = Lexer::new(contents);
 
@@ -50,7 +50,6 @@ impl Lexer {
         lexer.read_char();
         lexer
     }
-
 
     /**
     The character pointed to by `self.position` is loaded in `self.ch` and both pointers are moved forward
@@ -79,7 +78,7 @@ impl Lexer {
 
     no arguments
 
-    # Examples 
+    # Examples
     ```
     let lexer = Lexer::new(contents);
 
@@ -88,7 +87,6 @@ impl Lexer {
     */
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
-
 
         if self.ch == b'/' && self.peek_char() == b'/' {
             self.jump_comment();
@@ -219,7 +217,6 @@ impl Lexer {
         token
     }
 
-
     /**
     When a word is detected the function will read the word and return a `String` with the content
 
@@ -241,7 +238,6 @@ impl Lexer {
 
         String::from_utf8_lossy(&self.input[position..self.position]).to_string()
     }
-
 
     /**
     When a digit is detected the function will read the number and return a `i128` with the content
@@ -267,7 +263,6 @@ impl Lexer {
             .parse::<i128>()
             .expect("Not a  valid number, numbers must be i128")
     }
-
 
     /**
     When a string is detected the function will read the string and return a `String` with the content
@@ -307,7 +302,7 @@ impl Lexer {
     }
 
     /**
-    Returns the character pointed by `self.read_position` in u8 form 
+    Returns the character pointed by `self.read_position` in u8 form
     If the 'self.read_position' is out of bounds, the function returns the null character
 
     # Arguments
@@ -316,7 +311,7 @@ impl Lexer {
     ```
     if self.peek_char() == b'=' {
         self.read_char();
-    } 
+    }
     ```
     */
     fn peek_char(&mut self) -> u8 {
@@ -330,7 +325,7 @@ impl Lexer {
     /**
     Moves the pointers to the next line, jumping the comment
     # Arguments
-    
+
     no arguments
     */
     fn jump_comment(&mut self) {
@@ -344,6 +339,4 @@ impl Lexer {
             self.jump_comment();
         }
     }
-
 }
-

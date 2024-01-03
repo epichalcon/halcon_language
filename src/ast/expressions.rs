@@ -400,3 +400,31 @@ impl Node for WhileLoop {
         )
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Loop {
+    pub token: Token,
+    pub statements: BlockStatement,
+}
+
+impl Node for Loop {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+
+    fn string(&self) -> String {
+        format!(
+            "loop {{{}}}",
+            self.statements.statements.iter().enumerate().fold(
+                String::new(),
+                |acc, (i, statement)| {
+                    if i < self.statements.statements.len() - 1 {
+                        format!("{acc}{}, ", statement.string())
+                    } else {
+                        format!("{acc}{}", statement.string())
+                    }
+                }
+            )
+        )
+    }
+}

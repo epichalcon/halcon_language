@@ -32,6 +32,7 @@ pub enum AstNode {
     PostDecrement(PostDecrement),
     ForLoop(ForLoop),
     WhileLoop(WhileLoop),
+    Loop(Loop),
     Break,
 }
 
@@ -59,6 +60,7 @@ impl Node for AstNode {
             AstNode::PostDecrement(statement) => statement.token_literal(),
             AstNode::ForLoop(statement) => statement.token_literal(),
             AstNode::WhileLoop(statement) => statement.token_literal(),
+            AstNode::Loop(statement) => statement.token_literal(),
             AstNode::Break => Token::Break.to_string(),
         }
     }
@@ -86,6 +88,7 @@ impl Node for AstNode {
             AstNode::PostDecrement(statement) => statement.string(),
             AstNode::ForLoop(statement) => statement.string(),
             AstNode::WhileLoop(statement) => statement.string(),
+            AstNode::Loop(statement) => statement.string(),
             AstNode::Break => Token::Break.to_string(),
         }
     }

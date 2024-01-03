@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::ast::expressions::{DictLiteral, ForLoop, Identifier, IfExpression, WhileLoop};
+use crate::ast::expressions::{DictLiteral, ForLoop, Identifier, IfExpression, Loop, WhileLoop};
 use crate::ast::statements::{Assignation, Operation};
 use crate::object::{
-    Array, Dict, Function, Object, StringObject, ARRAY, BUILTIN, DICT, FUNCTION, STRING, BREAK,
+    Array, Dict, Function, Object, StringObject, ARRAY, BREAK, BUILTIN, DICT, FUNCTION, STRING,
 };
 
 use crate::{
@@ -223,6 +223,7 @@ impl Evaluator {
             }
             AstNode::ForLoop(for_loop) => self.eval_for_loop_expression(for_loop),
             AstNode::WhileLoop(while_loop) => self.eval_while_loop_expression(while_loop),
+            AstNode::Loop(loop_exp) => self.eval_loop_expression(loop_exp),
             AstNode::Break => ObjectType::Break,
             _ => panic!("Ast node not treated"),
         }
@@ -270,7 +271,10 @@ impl Evaluator {
         for statement in statements {
             let partial_result = self.eval(statement);
 
-            if partial_result.object_type() == BREAK || partial_result.object_type() == RETURN || partial_result.object_type() == ERROR {
+            if partial_result.object_type() == BREAK
+                || partial_result.object_type() == RETURN
+                || partial_result.object_type() == ERROR
+            {
                 return partial_result;
             }
             result = Some(partial_result)
@@ -465,8 +469,6 @@ impl Evaluator {
         while is_truthy(&condition) {
             res = self.eval_statements(for_loop.statements.statements.clone());
 
-            dbg!(&res);
-
             if res == ObjectType::Break {
                 return ObjectType::Null;
             }
@@ -481,12 +483,10 @@ impl Evaluator {
             if is_error(&condition) {
                 return condition;
             }
-
         }
 
         res
     }
-
 
     /**
     Evaluates a while loop executing the contents until the condition is fulfilled and returns the result of the last statement.
@@ -504,8 +504,6 @@ impl Evaluator {
         while is_truthy(&condition) {
             res = self.eval_statements(while_loop.statements.statements.clone());
 
-            dbg!(&res);
-
             if res == ObjectType::Break {
                 return ObjectType::Null;
             }
@@ -518,10 +516,28 @@ impl Evaluator {
             if is_error(&condition) {
                 return condition;
             }
-
         }
 
         res
+    }
+
+    /**
+    Evaluates an infinite loop executing the contents until a break, error or return is found.
+
+    # Arguments
+    * `loop_exp` - the loop to evaluate
+    */
+    fn eval_loop_expression(&mut self, loop_exp: Loop) -> ObjectType {
+        loop {
+            let res = self.eval_statements(loop_exp.statements.statements.clone());
+
+            if res == ObjectType::Break {
+                return ObjectType::Null;
+            }
+            if res.object_type() == RETURN || res.object_type() == ERROR {
+                return res;
+            }
+        }
     }
 
     /**
