@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use crate::ast::expressions::{
     ArrayLiteral, Boolean, CallExpression, DictLiteral, FunctionLiteral, IfExpression,
-    IndexExpression, InfixExpression, IntegerLiteral, PrefixExpression, StringLiteral, PostIncrement, PostDecrement,
+    IndexExpression, InfixExpression, IntegerLiteral, PostDecrement, PostIncrement,
+    PrefixExpression, StringLiteral, ForLoop,
 };
 use crate::ast::statements::{Assignation, BlockStatement, Operation};
 use crate::ast::{
@@ -142,6 +143,10 @@ impl Parser {
         match self.current_token {
             Token::Let => Ok(AstNode::LetStatement(self.parse_let_statement()?)),
             Token::Return => Ok(AstNode::ReturnStatement(self.parse_return_statement()?)),
+            Token::Break =>{
+                self.next_token();
+                Ok(AstNode::Break)
+            },
             _ => {
                 let res = Ok(self.parse_expression(Precedence::Lowest)?);
                 if self.peek_token_is(Token::Semicolon) {
@@ -259,6 +264,7 @@ impl Parser {
             Token::ConstBool(b) => Ok(self.parse_boolean(*b)?),
             Token::Opar => Ok(self.parse_grouped_expression()?),
             Token::If => Ok(self.parse_if_expression()?),
+            Token::For => Ok(self.parse_for_expression()?),
             Token::Fun => Ok(self.parse_function_literal()?),
             Token::ConstStr(s) => Ok(self.parse_string_literal(s.to_string())?),
             Token::Obrac => Ok(self.parse_array_literal()?),
@@ -315,8 +321,6 @@ impl Parser {
                 token: Token::Id(id.to_string()),
             }))
         }
-
-
     }
 
     /**
@@ -408,7 +412,7 @@ impl Parser {
             self.expect_peek(Token::Okey);
 
             let elif_cons = self.parse_block_statement()?;
-            
+
             elifs.push((elif_cond, elif_cons))
         }
 
@@ -423,7 +427,7 @@ impl Parser {
                 condition: Box::new(condition),
                 consequence,
                 alternative: Some(alternative),
-                elifs
+                elifs,
             }))
         } else {
             Ok(AstNode::IfExpression(IfExpression {
@@ -431,9 +435,45 @@ impl Parser {
                 condition: Box::new(condition),
                 consequence,
                 alternative: None,
-                elifs
+                elifs,
             }))
         }
+    }
+
+    /**
+    Parses a for loop expression and returns an `AstNode::ForLoop`
+    A for loop expression is parsed as
+    for (<initialization>; <condition>; <step>) {
+        <statements>
+    }
+
+    # Arguments
+    no arguments
+    */
+    fn parse_for_expression(&mut self) -> Result<AstNode, MyParseError> {
+        let for_tok = self.current_token.clone();
+        self.expect_peek(Token::Opar);
+        self.expect_peek(Token::Let);
+        let initialization = self.parse_let_statement()?; // let statement consumes the semicolon
+        self.next_token();
+
+        let condition = Box::new(self.parse_expression(Precedence::Lowest)?); // does not consume the semicolon
+        self.expect_peek(Token::Semicolon);
+        self.next_token();
+                                                                              // semicolon
+        let step = Box::new(self.parse_expression(Precedence::Lowest)?); // does not consume the
+        self.expect_peek(Token::Cpar);
+        self.expect_peek(Token::Okey);
+
+        let statements = self.parse_block_statement()?;
+
+        Ok(AstNode::ForLoop(ForLoop {
+            token: for_tok,
+            initialization,
+            condition,
+            step,
+            statements,
+        }))
     }
 
     /**
@@ -663,10 +703,12 @@ impl Parser {
             Token::DivAsig => Operation::Divide,
 
             other => {
-                self.errors
-                    .push(format!("{} is not a valid assignation type", other.to_string()));
-                return Err(MyParseError);}
-            
+                self.errors.push(format!(
+                    "{} is not a valid assignation type",
+                    other.to_string()
+                ));
+                return Err(MyParseError);
+            }
         };
 
         self.next_token();
@@ -753,7 +795,7 @@ impl Parser {
     }
 
     /**
-    Retruns if the peek_token is equal to the expected token.
+    Retruns if the `peek_token` is equal to the expected token.
     if it is equal, the tokens update to the next ones in the list
     if it is not equal, an error is added to the list of errors
 

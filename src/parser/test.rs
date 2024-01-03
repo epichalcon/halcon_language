@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ast::{statements::LetStatement, Node};
+use crate::ast::{statements::{LetStatement, self}, Node};
 
 use super::*;
 
@@ -691,6 +691,63 @@ fn test_parsing_expression_dict() {
         test_funct(val.clone())
     }
 }
+
+
+#[test]
+fn test_for_expression() {
+    let input = "for (let i = 0; i < 3; i++) { x }";
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let parse_program = parser.parse_program();
+    let program = get_program(&parse_program);
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+
+    let exp = &program.statements[0];
+
+    let for_expression = match exp.clone() {
+        AstNode::ForLoop(if_expression) => if_expression,
+        actual => panic!("Expected a for expression, got {:?}", actual),
+    };
+
+    assert_eq!("i", for_expression.initialization.name.string());
+    assert_eq!("0", for_expression.initialization.value.string());
+
+    test_infix_expression(&for_expression.condition, "i", "<", "3");
+
+
+    let post_inc = match *for_expression.step {
+        AstNode::PostIncrement(assig) => assig,
+        actual => panic!("Expected an post increment expression, got {:?}", actual),
+    };
+
+    assert_eq!(&post_inc.string(), "i");
+
+
+    assert_eq!(1, for_expression.statements.statements.len());
+    let statement = &for_expression.statements.statements[0];
+    test_identifier(&statement, "x")
+}
+
+#[test]
+fn test_break_expression() {
+    let input = "break;";
+
+    let lex = Lexer::new(input.to_string());
+    let mut parser = Parser::new(lex);
+    let parse_program = parser.parse_program();
+    let program = get_program(&parse_program);
+
+    check_parse_errors(parser);
+    assert_eq!(1, program.statements.len());
+
+    let exp = &program.statements[0];
+
+    assert_eq!(*exp, AstNode::Break);
+}
+
 
 //-------------------[Test helpers]-------------------//
 

@@ -192,6 +192,7 @@ impl Lexer {
                         "elif" => Token::Elif,
                         "else" => Token::Else,
                         "return" => Token::Return,
+                        "break" => Token::Break,
                         "true" => Token::ConstBool(true),
                         "false" => Token::ConstBool(false),
                         "int" => Token::Int,

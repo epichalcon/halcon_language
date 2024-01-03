@@ -7,7 +7,7 @@ In this proyect I would like to try to write a simple interpreter that can inter
 ---
 # Language definition
 
-As I am following the "writing an interpreter in go" book, this language will have dynamic typing and will be expression based.
+As I am following the "writing an interpreter in go" book and expanding on its content to add functionality I want to have like loops, elifs and some operators that aren't included, this language will have dynamic typing and will be expression based.
 
 ### Types
 The types used by the language will be:
@@ -73,8 +73,6 @@ let function_name = fun (arg1, arg2...) {
 }
 ```
 
-If the function has got no return type, [-> type] must not be specified
-
 ### If/else
 
 The if else block will be defined as:
@@ -94,13 +92,11 @@ else{
 The for block will be defined as:
 
 ```
-for (declaration; initialization; condition; Increment/Decrement){
+for (initialization; condition; Increment/Decrement){
 
     }
 
 ```
-
-TODO: not yet implemented for loop
 
 ### While
 The while block will be defined as:

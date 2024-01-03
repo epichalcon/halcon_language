@@ -1,3 +1,5 @@
+use crate::token::Token;
+
 use self::{expressions::*, statements::*};
 pub mod expressions;
 pub mod statements;
@@ -28,6 +30,8 @@ pub enum AstNode {
     Assignation(Assignation),
     PostIncrement(PostIncrement),
     PostDecrement(PostDecrement),
+    ForLoop(ForLoop),
+    Break,
 }
 
 impl Node for AstNode {
@@ -52,6 +56,8 @@ impl Node for AstNode {
             AstNode::Assignation(statement) => statement.token_literal(),
             AstNode::PostIncrement(statement) => statement.token_literal(),
             AstNode::PostDecrement(statement) => statement.token_literal(),
+            AstNode::ForLoop(statement) => statement.token_literal(),
+            AstNode::Break => Token::Break.to_string(),
         }
     }
 
@@ -76,6 +82,8 @@ impl Node for AstNode {
             AstNode::Assignation(statement) => statement.string(),
             AstNode::PostIncrement(statement) => statement.string(),
             AstNode::PostDecrement(statement) => statement.string(),
+            AstNode::ForLoop(statement) => statement.string(),
+            AstNode::Break => Token::Break.to_string(),
         }
     }
 }

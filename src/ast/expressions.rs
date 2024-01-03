@@ -6,6 +6,7 @@ use crate::ast::Node;
 use crate::token::Token;
 
 use super::AstNode;
+use super::statements::LetStatement;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PrefixExpression {
@@ -68,25 +69,18 @@ impl Node for IfExpression {
             self.consequence.string()
         );
 
-        let elifs = format!("{}{}", res, self
-            .elifs
-            .iter()
-            .fold(String::new(), |acc, (cond, cons)| {
-                format!(
-                    "{acc} elif {} {}",
-                    cond.string(),
-                    cons.string()
-                )
-            }));
+        let elifs = format!(
+            "{}{}",
+            res,
+            self.elifs.iter().fold(String::new(), |acc, (cond, cons)| {
+                format!("{acc} elif {} {}", cond.string(), cons.string())
+            })
+        );
 
         match &self.alternative {
             None => elifs,
             Some(alternative) => {
-                format!(
-                    "{} else {}",
-                    elifs,
-                    alternative.string()
-                )
+                format!("{} else {}", elifs, alternative.string())
             }
         }
     }
@@ -340,5 +334,39 @@ impl Node for PostDecrement {
 
     fn string(&self) -> String {
         self.token_literal()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ForLoop {
+    pub token: Token,
+    pub initialization: LetStatement,
+    pub condition: Box<AstNode>,
+    pub step: Box<AstNode>,
+    pub statements: BlockStatement,
+}
+
+impl Node for ForLoop {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+
+    fn string(&self) -> String {
+        format!(
+            "for ({}; {}; {}) {{{}}}",
+            self.initialization.string(),
+            self.condition.string(),
+            self.step.string(),
+            self.statements.statements.iter().enumerate().fold(
+                String::new(),
+                |acc, (i, statement)| {
+                    if i < self.statements.statements.len() - 1 {
+                        format!("{acc}{}, ", statement.string())
+                    } else {
+                        format!("{acc}{}", statement.string())
+                    }
+                }
+            )
+        )
     }
 }

@@ -115,7 +115,10 @@ fn test_if_else_expressions() {
         ("if (1 < 2) { 10 }", "10"),
         ("if (1 > 2) { 10 }", "null"),
         ("if (1 > 2) { 10 } elif (1 == 1) {15} else { 20 }", "15"),
-        ("if (1 > 2) { 10 } elif (1 != 1) {2} elif (1 == 1) {15} else { 20 }", "15"),
+        (
+            "if (1 > 2) { 10 } elif (1 != 1) {2} elif (1 == 1) {15} else { 20 }",
+            "15",
+        ),
         ("if (1 < 2) { 10 } else { 20 }", "10"),
         ("if (1 > 2) { 10 } else { 20 }", "20"),
     ];
@@ -131,6 +134,25 @@ fn test_if_else_expressions() {
             test_null_object(evaluated)
         }
     }
+}
+
+#[test]
+fn test_for_loop_expression() {
+    let input = "let x = 0; for (let i = 0; i < 3; i++) {x++} x;";
+
+    let evaluated = test_eval(input);
+
+    test_integer_object(evaluated, 3);
+}
+
+
+#[test]
+fn test_break_expression() {
+    let input = "let x = 0; for (let i = 0; i < 3; i++) { if (x == 1) {break;}  x++} x;";
+
+    let evaluated = test_eval(input);
+
+    test_integer_object(evaluated, 1);
 }
 
 #[test]
@@ -229,7 +251,6 @@ fn test_let_statements() {
     }
 }
 
-
 #[test]
 fn test_assign_statement() {
     let tests = vec![
@@ -254,10 +275,7 @@ fn test_assign_statement() {
 
 #[test]
 fn test_post_inc_dec() {
-    let tests = vec![
-        ("let a = 5; a++;", 6),
-        ("let a = 5; a--;", 4),
-    ];
+    let tests = vec![("let a = 5; a++; a;", 6), ("let a = 5; a--; a;", 4)];
 
     for (input, expected) in tests {
         dbg!(&input);

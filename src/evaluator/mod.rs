@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::ast::expressions::{DictLiteral, Identifier, IfExpression};
+use crate::ast::expressions::{DictLiteral, ForLoop, Identifier, IfExpression};
 use crate::ast::statements::{Assignation, Operation};
 use crate::object::{
-    Array, Dict, Function, Object, StringObject, ARRAY, BUILTIN, DICT, FUNCTION, STRING,
+    Array, Dict, Function, Object, StringObject, ARRAY, BUILTIN, DICT, FUNCTION, STRING, BREAK,
 };
 
 use crate::{
@@ -183,7 +183,7 @@ impl Evaluator {
             }
             AstNode::DictLiteral(dict) => self.eval_dict_literal(dict),
             AstNode::Assignation(assig) => self.eval_assignation_literal(assig),
-            AstNode::PostDecrement(inc) => {
+            AstNode::PostIncrement(inc) => {
                 let obj = match self.env.get(inc.string()) {
                     Some(value) => value,
                     None => return new_error(format!("{} is not in scope", inc.string())),
@@ -198,9 +198,11 @@ impl Evaluator {
                     }
                 };
 
-                ObjectType::Integer(Integer { value: val - 1 })
+                let new_val = ObjectType::Integer(Integer { value: val + 1 });
+                self.env.set(inc.string().as_str(), new_val.clone());
+                new_val
             }
-            AstNode::PostIncrement(dec) => {
+            AstNode::PostDecrement(dec) => {
                 let obj = match self.env.get(dec.string()) {
                     Some(value) => value,
                     None => return new_error(format!("{} is not in scope", dec.string())),
@@ -215,8 +217,12 @@ impl Evaluator {
                     }
                 };
 
-                ObjectType::Integer(Integer { value: val + 1 })
+                let new_val = ObjectType::Integer(Integer { value: val - 1 });
+                self.env.set(dec.string().as_str(), new_val.clone());
+                new_val
             }
+            AstNode::ForLoop(for_loop) => self.eval_for_loop_expression(for_loop),
+            AstNode::Break => ObjectType::Break,
             _ => panic!("Ast node not treated"),
         }
     }
@@ -263,7 +269,7 @@ impl Evaluator {
         for statement in statements {
             let partial_result = self.eval(statement);
 
-            if partial_result.object_type() == RETURN || partial_result.object_type() == ERROR {
+            if partial_result.object_type() == BREAK || partial_result.object_type() == RETURN || partial_result.object_type() == ERROR {
                 return partial_result;
             }
             result = Some(partial_result)
@@ -414,14 +420,14 @@ impl Evaluator {
     Evaluates an if else expression returns the result.
 
     # Arguments
-    * `if_expression` - the if expression to parse
+    * `if_expression` - the if expression to evaluate
     */
     fn eval_if_expression(&mut self, if_expression: IfExpression) -> ObjectType {
         let condition = self.eval(*if_expression.condition);
         if is_error(&condition) {
             return condition;
         }
-        if is_truthy(condition) {
+        if is_truthy(&condition) {
             self.eval(AstNode::BlockStatement(if_expression.consequence))
         } else {
             for (elif_cond, elif_cons) in if_expression.elifs {
@@ -431,7 +437,7 @@ impl Evaluator {
                     return condition;
                 }
 
-                if is_truthy(condition) {
+                if is_truthy(&condition) {
                     return self.eval(AstNode::BlockStatement(elif_cons));
                 }
             }
@@ -440,6 +446,44 @@ impl Evaluator {
                 None => ObjectType::Null,
             }
         }
+    }
+
+    /**
+    Evaluates a for loop executing the contents until the condition is fulfilled and returns the result of the last statement.
+    # Arguments
+    * `for_loop` - the for loop to evaluate*/
+    fn eval_for_loop_expression(&mut self, for_loop: ForLoop) -> ObjectType {
+        self.eval(AstNode::LetStatement(for_loop.initialization));
+        let mut condition = self.eval(*for_loop.condition.clone());
+        if is_error(&condition) {
+            return condition;
+        }
+
+        let mut res = ObjectType::Null;
+
+        while is_truthy(&condition) {
+            res = self.eval_statements(for_loop.statements.statements.clone());
+
+            dbg!(&res);
+
+            if res == ObjectType::Break {
+                return ObjectType::Null;
+            }
+            if res.object_type() == RETURN || res.object_type() == ERROR {
+                return res;
+            }
+
+            self.eval(*for_loop.step.clone());
+
+            condition = self.eval(*for_loop.condition.clone());
+
+            if is_error(&condition) {
+                return condition;
+            }
+
+        }
+
+        res
     }
 
     /**
@@ -638,7 +682,7 @@ impl Evaluator {
     */
     fn eval_not_operator(&self, right: ObjectType) -> ObjectType {
         ObjectType::Boolean(Boolean {
-            value: !is_truthy(right),
+            value: !is_truthy(&right),
         })
     }
 
@@ -765,7 +809,7 @@ Returns if an object is truthy. The results are the following
 # Arguments
 * `condition` - the `ObjectType` to evaluate
 */
-fn is_truthy(condition: ObjectType) -> bool {
+fn is_truthy(condition: &ObjectType) -> bool {
     match condition {
         ObjectType::Boolean(boolean) => boolean.value,
         ObjectType::Null => false,

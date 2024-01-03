@@ -212,6 +212,7 @@ fn test_two_char_operands() {
 10 != 9;
 <= >= // hola
 -- ++
+break
 // hola
 //";
 
@@ -228,6 +229,7 @@ fn test_two_char_operands() {
         Token::Ge,
         Token::Dec,
         Token::Inc,
+        Token::Break,
         Token::Eof,
     ];
 

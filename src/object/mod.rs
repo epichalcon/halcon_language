@@ -8,6 +8,7 @@ pub mod environment;
 pub const INTEGER: &str = "INTEGER";
 pub const BOOLEAN: &str = "BOOLEAN";
 pub const NULL: &str = "NULL";
+pub const BREAK: &str = "BREAK";
 pub const RETURN: &str = "RETURN";
 pub const ERROR: &str = "ERROR";
 pub const FUNCTION: &str = "FUNCTION";
@@ -27,6 +28,7 @@ pub enum ObjectType {
     Boolean(Boolean),
     Null,
     Return(ReturnValue),
+    Break,
     Error(Error),
     Function(Function),
     String(StringObject),
@@ -41,6 +43,7 @@ impl Object for ObjectType {
             ObjectType::Integer(ty) => ty.object_type(),
             ObjectType::Boolean(ty) => ty.object_type(),
             ObjectType::Null => NULL.to_string(),
+            ObjectType::Break => BREAK.to_string(),
             ObjectType::Return(ty) => ty.object_type(),
             ObjectType::Error(ty) => ty.object_type(),
             ObjectType::Function(ty) => ty.object_type(),
@@ -56,6 +59,7 @@ impl Object for ObjectType {
             ObjectType::Integer(ty) => ty.inspect(),
             ObjectType::Boolean(ty) => ty.inspect(),
             ObjectType::Null => "null".to_string(),
+            ObjectType::Break => "break".to_string(),
             ObjectType::Return(ty) => ty.inspect(),
             ObjectType::Error(ty) => ty.inspect(),
             ObjectType::Function(ty) => ty.inspect(),
