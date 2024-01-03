@@ -6,8 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust.org/cargo/reference/manifest.html
 
 [dependencies]
-strum_macros = "0.24"
-strum = "0.24"
 docopt = "1"
 serde = {version = "1", features = ["derive"]}
-pomelo = "0.1.5"

@@ -1,8 +1,6 @@
 use core::fmt::Display;
 
-use strum_macros::EnumString;
-
-#[derive(EnumString, Clone, Debug, PartialEq, Hash, Eq)]
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub enum Token {
     Id(String),
     ConstInt(i128),
@@ -12,7 +10,6 @@ pub enum Token {
     Int,
     Str,
     Bool,
-    Float,
     Arr,
 
     Plus,
@@ -53,9 +50,6 @@ pub enum Token {
     Loop,
     While,
 
-    Input,
-    Print,
-
     Coma,
     Semicolon,
     Colon,
@@ -82,7 +76,6 @@ impl Display for Token {
             Token::Int => write!(f, "int"),
             Token::Str => write!(f, "str"),
             Token::Bool => write!(f, "bool"),
-            Token::Float => write!(f, "float"),
             Token::Arr => write!(f, "arr"),
             Token::Plus => write!(f, "+"),
             Token::Minus => write!(f, "-"),
@@ -116,8 +109,6 @@ impl Display for Token {
             Token::For => write!(f, "for"),
             Token::Loop => write!(f, "loop"),
             Token::While => write!(f, "while"),
-            Token::Input => write!(f, "input"),
-            Token::Print => write!(f, "print"),
             Token::Coma => write!(f, ","),
             Token::Semicolon => write!(f, ";"),
             Token::Colon => write!(f, ":"),
